@@ -1,0 +1,12 @@
+version: 1
+from: node:22-alpine
+workdir: /workspace
+copy:
+  - src: .
+    dest: /app
+entrypoint:
+  - node
+  - server.js
+cmd:
+  - npm
+  - start

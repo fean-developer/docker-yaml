@@ -1,0 +1,15 @@
+version: 1
+from: node:22-alpine
+copy:
+  - src: .
+    dest: /app
+run:
+  - npm install
+  - npm run build
+env:
+  NODE_ENV: production
+expose:
+  - 3000
+cmd:
+  - npm
+  - start

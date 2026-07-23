@@ -1,0 +1,7 @@
+version: 1
+copy:
+  - src: .
+    dest: /app
+expose:
+  - 99999
+unknownField: true
