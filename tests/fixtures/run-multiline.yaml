@@ -1,0 +1,8 @@
+version: 1
+from: node:22-alpine
+run: |
+  addgroup -S appgroup &&
+  adduser -S appuser -G appgroup
+cmd:
+  - node
+  - app.js

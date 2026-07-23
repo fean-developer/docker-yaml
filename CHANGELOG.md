@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0 - 2026-07-23
+- Suporte a ordenacao customizada com `order.<chave>.before|after`.
+- Suporte a `expose` em formato objeto com `ports` e `before/after`.
+- Validacao de regras de ordenacao para chaves suportadas.
+- Novos testes para API e CLI cobrindo ordenacao customizada.
+
+## 0.6.0 - 2026-07-23
+- Suporte a `run` em formato multiline (string YAML) alem de lista.
+- Geracao de `RUN` multiline com continuacao por `\\`.
+- Novos testes de API e CLI cobrindo o comportamento.
+
+## 0.5.0 - 2026-07-23
+- Suporte ao campo `user` com geracao de instrucao `USER`.
+- Suporte a `copy.chown` para gerar `COPY --chown=...`.
+- Suporte a `copy.afterRun` para ordenar copias apos os comandos `RUN`.
+- `env` agora aceita valores string, numero e boolean.
+- Atualizacao do fixture `complex.yaml` para o formato suportado.
+
 ## 0.4.0 - 2026-07-23
 - Suporte a `arg` em single-stage e multi-stage.
 - Geracao de `ARG CHAVE=valor` e `ARG CHAVE` (quando valor e `null`).

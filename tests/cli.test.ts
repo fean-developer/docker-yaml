@@ -14,6 +14,9 @@ const entrypointWorkdirFixturePath = new URL("./fixtures/entrypoint-workdir.yaml
 const multiStageFixturePath = new URL("./fixtures/multi-stage.yaml", import.meta.url);
 const argSingleStageFixturePath = new URL("./fixtures/arg-single-stage.yaml", import.meta.url);
 const argInvalidFixturePath = new URL("./fixtures/arg-invalid.yaml", import.meta.url);
+const complexFixturePath = new URL("./fixtures/complex.yaml", import.meta.url);
+const runMultilineFixturePath = new URL("./fixtures/run-multiline.yaml", import.meta.url);
+const orderPlacementFixturePath = new URL("./fixtures/order-placement.yaml", import.meta.url);
 
 describe("docker-yaml CLI", () => {
   it("validate retorna sucesso para fixture valida", async () => {
@@ -84,5 +87,33 @@ describe("docker-yaml CLI", () => {
       stdout: "",
       code: 1
     });
+  });
+
+  it("validate retorna sucesso para complex fixture", async () => {
+    const { stdout } = await execFileAsync("node", ["--import", "tsx", cliPath.pathname, "validate", complexFixturePath.pathname]);
+    expect(stdout).toContain("Spec valida");
+  });
+
+  it("generate preserva formato multiline no RUN", async () => {
+    const { stdout } = await execFileAsync("node", ["--import", "tsx", cliPath.pathname, "generate", runMultilineFixturePath.pathname]);
+    expect(stdout).toContain("RUN addgroup -S appgroup && \\");
+    expect(stdout).toContain("    adduser -S appuser -G appgroup");
+  });
+
+  it("generate respeita order e expose.before/after", async () => {
+    const { stdout } = await execFileAsync("node", ["--import", "tsx", cliPath.pathname, "generate", orderPlacementFixturePath.pathname]);
+
+    const exposeIndex = stdout.indexOf("EXPOSE 3000");
+    const argIndex = stdout.indexOf("ARG APP_ENV=production");
+    const runIndex = stdout.indexOf("RUN npm ci");
+    const envIndex = stdout.indexOf("ENV NODE_ENV=production");
+
+    expect(exposeIndex).toBeGreaterThan(-1);
+    expect(argIndex).toBeGreaterThan(-1);
+    expect(runIndex).toBeGreaterThan(-1);
+    expect(envIndex).toBeGreaterThan(-1);
+
+    expect(exposeIndex).toBeLessThan(argIndex);
+    expect(envIndex).toBeGreaterThan(runIndex);
   });
 });

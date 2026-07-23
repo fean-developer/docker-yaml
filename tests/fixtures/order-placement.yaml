@@ -1,0 +1,15 @@
+version: 1
+from: node:22-alpine
+arg:
+  APP_ENV: production
+run:
+  - npm ci
+env:
+  NODE_ENV: production
+expose:
+  ports:
+    - 3000
+  before: arg
+order:
+  env:
+    after: run

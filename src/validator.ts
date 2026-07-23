@@ -1,8 +1,10 @@
 import type { DockerStage, DockerYamlV1, ValidationError, ValidationResult } from "./types.js";
 
-const ALLOWED_FIELDS = new Set(["version", "from", "arg", "workdir", "copy", "run", "env", "expose", "entrypoint", "cmd", "stages"]);
-const STAGE_ALLOWED_FIELDS = new Set(["from", "arg", "workdir", "copy", "run", "env", "expose", "entrypoint", "cmd"]);
-const ROOT_STAGE_FIELDS = ["from", "arg", "workdir", "copy", "run", "env", "expose", "entrypoint", "cmd"] as const;
+const ORDER_ANCHORS = new Set(["from", "arg", "workdir", "copy", "run", "env", "expose", "user", "entrypoint", "cmd"]);
+const ORDER_KEYS = new Set(["arg", "workdir", "copy", "run", "env", "expose", "user", "entrypoint", "cmd"]);
+const ALLOWED_FIELDS = new Set(["version", "from", "arg", "workdir", "copy", "run", "env", "expose", "user", "entrypoint", "cmd", "order", "stages"]);
+const STAGE_ALLOWED_FIELDS = new Set(["from", "arg", "workdir", "copy", "run", "env", "expose", "user", "entrypoint", "cmd", "order"]);
+const ROOT_STAGE_FIELDS = ["from", "arg", "workdir", "copy", "run", "env", "expose", "user", "entrypoint", "cmd", "order"] as const;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -132,19 +134,31 @@ function validateStageFields(stage: Partial<DockerStage>, prefix: string, errors
         if (typeof item.dest !== "string" || item.dest.trim().length === 0) {
           pushError(errors, `${path("copy")}[${index}].dest`, "deve ser string nao vazia");
         }
+
+        if (item.chown !== undefined && (typeof item.chown !== "string" || item.chown.trim().length === 0)) {
+          pushError(errors, `${path("copy")}[${index}].chown`, "deve ser string nao vazia");
+        }
+
+        if (item.afterRun !== undefined && typeof item.afterRun !== "boolean") {
+          pushError(errors, `${path("copy")}[${index}].afterRun`, "deve ser boolean");
+        }
       });
     }
   }
 
   if (stage.run !== undefined) {
-    if (!Array.isArray(stage.run)) {
-      pushError(errors, path("run"), "deve ser uma lista");
-    } else {
+    if (Array.isArray(stage.run)) {
       stage.run.forEach((item, index) => {
         if (typeof item !== "string" || item.trim().length === 0) {
           pushError(errors, `${path("run")}[${index}]`, "deve ser string nao vazia");
         }
       });
+    } else if (typeof stage.run === "string") {
+      if (stage.run.trim().length === 0) {
+        pushError(errors, path("run"), "deve ser string nao vazia");
+      }
+    } else {
+      pushError(errors, path("run"), "deve ser uma lista ou string");
     }
   }
 
@@ -156,18 +170,19 @@ function validateStageFields(stage: Partial<DockerStage>, prefix: string, errors
         if (key.trim().length === 0) {
           pushError(errors, path("env"), "nao pode conter chave vazia");
         }
-        if (typeof value !== "string") {
-          pushError(errors, `${path("env")}.${key}`, "deve ser string");
+        if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
+          pushError(errors, `${path("env")}.${key}`, "deve ser string, numero ou boolean");
         }
       }
     }
   }
 
   if (stage.expose !== undefined) {
-    if (!Array.isArray(stage.expose)) {
-      pushError(errors, path("expose"), "deve ser uma lista");
+    const exposePorts = normalizeExposePorts(stage.expose);
+    if (exposePorts === null) {
+      pushError(errors, path("expose"), "deve ser uma lista ou objeto { ports, before?, after? }");
     } else {
-      stage.expose.forEach((item, index) => {
+      exposePorts.forEach((item, index) => {
         if (!Number.isInteger(item)) {
           pushError(errors, `${path("expose")}[${index}]`, "deve ser inteiro");
           return;
@@ -178,6 +193,20 @@ function validateStageFields(stage: Partial<DockerStage>, prefix: string, errors
           pushError(errors, `${path("expose")}[${index}]`, "deve estar entre 1 e 65535");
         }
       });
+
+      if (isObject(stage.expose)) {
+        if (!Array.isArray(stage.expose.ports)) {
+          pushError(errors, `${path("expose")}.ports`, "deve ser uma lista");
+        }
+
+        validateBeforeAfter(stage.expose.before, stage.expose.after, path("expose"), errors);
+      }
+    }
+  }
+
+  if (stage.user !== undefined) {
+    if (typeof stage.user !== "string" || stage.user.trim().length === 0) {
+      pushError(errors, path("user"), "deve ser uma string nao vazia");
     }
   }
 
@@ -211,6 +240,52 @@ function validateStageFields(stage: Partial<DockerStage>, prefix: string, errors
         }
       });
     }
+  }
+
+  if (stage.order !== undefined) {
+    if (!isObject(stage.order)) {
+      pushError(errors, path("order"), "deve ser um objeto");
+    } else {
+      for (const [key, rule] of Object.entries(stage.order)) {
+        if (!ORDER_KEYS.has(key)) {
+          pushError(errors, `${path("order")}.${key}`, "chave nao suportada em order");
+          continue;
+        }
+
+        if (!isObject(rule)) {
+          pushError(errors, `${path("order")}.${key}`, "deve ser objeto com before/after");
+          continue;
+        }
+
+        validateBeforeAfter(rule.before, rule.after, `${path("order")}.${key}`, errors);
+      }
+    }
+  }
+}
+
+function normalizeExposePorts(expose: DockerStage["expose"]): number[] | null {
+  if (Array.isArray(expose)) {
+    return expose;
+  }
+
+  if (isObject(expose) && Array.isArray(expose.ports)) {
+    return expose.ports as number[];
+  }
+
+  return null;
+}
+
+function validateBeforeAfter(before: unknown, after: unknown, basePath: string, errors: ValidationError[]): void {
+  if (before !== undefined && (typeof before !== "string" || !ORDER_ANCHORS.has(before))) {
+    pushError(errors, `${basePath}.before`, "deve ser uma chave valida (from,arg,workdir,copy,run,env,expose,user,entrypoint,cmd)");
+  }
+
+  if (after !== undefined && (typeof after !== "string" || !ORDER_ANCHORS.has(after))) {
+    pushError(errors, `${basePath}.after`, "deve ser uma chave valida (from,arg,workdir,copy,run,env,expose,user,entrypoint,cmd)");
+  }
+
+  if (before !== undefined && after !== undefined) {
+    pushError(errors, basePath, "nao pode definir before e after ao mesmo tempo");
   }
 }
 

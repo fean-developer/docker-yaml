@@ -1,0 +1,62 @@
+version: 1
+from: mcr.microsoft.com/dotnet/sdk:8.0-jammy
+
+# Environment variables posicionados logo após FROM usando order
+env:
+  GH_VERSION: "2.96.0"
+  SONAR_SCANNER_VERSION: "6.2.1.4610"
+  ZAP_VERSION: "2.17.0"
+  DEBIAN_FRONTEND: noninteractive
+  NODE_VERSION: "24.18.0"
+  KUBECTL_VERSION: "v1.30.2"
+  HELM_VERSION: "3.16.1"
+
+# RUN commands na sequência
+run:
+  - |
+    sed -i 's|http://archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' /etc/apt/sources.list \
+    && apt-get update -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 \
+    && apt-get install -y --no-install-recommends \
+        npm \
+        ca-certificates \
+        curl \
+        git \
+        python3 \
+        python3-pip \
+        python3-venv \
+        python-is-python3 \
+        openjdk-21-jdk \
+        maven \
+        unzip \
+        zip \
+        xz-utils \
+        jq \
+        docker.io \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir yamllint
+  - curl -fsSL https://github.com/docker/buildx/releases/download/v0.34.0/buildx-v0.34.0.linux-amd64 -o /usr/libexec/docker/cli-plugins/docker-buildx && chmod +x /usr/libexec/docker/cli-plugins/docker-buildx
+  - curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz | tar -xJ -C /usr/local --strip-components=1
+  - npm install -g snyk
+  - |
+    curl -sSL "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-x64.zip" -o /tmp/sonar-scanner.zip \
+    && unzip -q /tmp/sonar-scanner.zip -d /opt \
+    && ln -s "/opt/sonar-scanner-${SONAR_SCANNER_VERSION}-linux-x64/bin/sonar-scanner" /usr/local/bin/sonar-scanner
+  - |
+    curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.deb" \
+    -o /tmp/gh.deb \
+    && dpkg -i /tmp/gh.deb \
+    && rm -f /tmp/gh.deb \
+    && gh extension install github/gh-ado2gh
+  - curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl
+  - curl -fsSL https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar -xzf - -C /usr/local/bin --strip-components=1 linux-amd64/helm
+  - curl -fsSL "https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_amd64" -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
+  - curl -fsSL "https://github.com/argoproj/argo-cd/releases/download/v2.12.0/argocd-linux-amd64" -o /usr/local/bin/argocd && chmod +x /usr/local/bin/argocd
+  - pip install --no-cache-dir pyyaml
+
+cmd:
+  - bash
+
+# Ordenação customizada: ENV logo após FROM
+order:
+  env:
+    before: run

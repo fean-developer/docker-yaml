@@ -10,6 +10,9 @@ const multiStageInvalidFixturePath = new URL("./fixtures/multi-stage-invalid.yam
 const argSingleStageFixturePath = new URL("./fixtures/arg-single-stage.yaml", import.meta.url);
 const argMultiStageFixturePath = new URL("./fixtures/arg-multi-stage.yaml", import.meta.url);
 const argInvalidFixturePath = new URL("./fixtures/arg-invalid.yaml", import.meta.url);
+const complexFixturePath = new URL("./fixtures/complex.yaml", import.meta.url);
+const runMultilineFixturePath = new URL("./fixtures/run-multiline.yaml", import.meta.url);
+const orderPlacementFixturePath = new URL("./fixtures/order-placement.yaml", import.meta.url);
 
 const expectedDockerfile = [
   "FROM node:22-alpine",
@@ -110,5 +113,56 @@ describe("docker-yaml API", () => {
 
     expect(result.valid).toBe(false);
     expect(result.errors.some((error) => error.path === "arg.BAD_VALUE")).toBe(true);
+  });
+
+  it("valida e gera complex.yaml com copy --chown apos run de criacao de usuario", async () => {
+    const content = await readFile(complexFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    const runUserIndex = dockerfile.indexOf("addgroup -S appgroup");
+    const copyChownIndex = dockerfile.indexOf("COPY --chown=appuser:appgroup . ./");
+
+    expect(runUserIndex).toBeGreaterThan(-1);
+    expect(copyChownIndex).toBeGreaterThan(-1);
+    expect(copyChownIndex).toBeGreaterThan(runUserIndex);
+    expect(dockerfile).toContain("USER appuser:appgroup");
+  });
+
+  it("suporta run multiline em string", async () => {
+    const content = await readFile(runMultilineFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    expect(dockerfile).toContain("RUN addgroup -S appgroup && \\");
+    expect(dockerfile).toContain("    adduser -S appuser -G appgroup");
+  });
+
+  it("suporta before/after para ordenacao de chaves", async () => {
+    const content = await readFile(orderPlacementFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    const exposeIndex = dockerfile.indexOf("EXPOSE 3000");
+    const argIndex = dockerfile.indexOf("ARG APP_ENV=production");
+    const runIndex = dockerfile.indexOf("RUN npm ci");
+    const envIndex = dockerfile.indexOf("ENV NODE_ENV=production");
+
+    expect(exposeIndex).toBeGreaterThan(-1);
+    expect(argIndex).toBeGreaterThan(-1);
+    expect(runIndex).toBeGreaterThan(-1);
+    expect(envIndex).toBeGreaterThan(-1);
+
+    expect(exposeIndex).toBeLessThan(argIndex);
+    expect(envIndex).toBeGreaterThan(runIndex);
   });
 });
