@@ -3,9 +3,9 @@ export type CopyInstruction = {
   dest: string;
 };
 
-export type DockerYamlV1 = {
-  version: 1;
+export type DockerStage = {
   from: string;
+  arg?: Record<string, string | number | boolean | null>;
   workdir?: string;
   copy?: CopyInstruction[];
   run?: string[];
@@ -13,6 +13,11 @@ export type DockerYamlV1 = {
   expose?: number[];
   entrypoint?: string[];
   cmd?: string[];
+};
+
+export type DockerYamlV1 = DockerStage & {
+  version: 1;
+  stages?: DockerStage[];
 };
 
 export type ValidationError = {

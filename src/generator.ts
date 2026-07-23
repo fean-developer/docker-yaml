@@ -1,4 +1,4 @@
-import type { DockerYamlV1 } from "./types.js";
+import type { DockerStage, DockerYamlV1 } from "./types.js";
 
 function jsonArray(values: string[]): string {
   const escaped = values.map((value) => JSON.stringify(value));
@@ -14,10 +14,79 @@ function inferWorkdir(spec: DockerYamlV1): string | null {
   return firstAbsoluteCopyDest ?? null;
 }
 
+function inferStageWorkdir(stage: DockerStage): string | null {
+  if (stage.workdir && stage.workdir.trim().length > 0) {
+    return stage.workdir;
+  }
+
+  const firstAbsoluteCopyDest = stage.copy?.find((item) => item.dest.startsWith("/"))?.dest;
+  return firstAbsoluteCopyDest ?? null;
+}
+
+function stageToLines(stage: DockerStage): string[] {
+  const lines: string[] = [];
+
+  lines.push(`FROM ${stage.from}`);
+
+  for (const [key, value] of Object.entries(stage.arg ?? {})) {
+    if (value === null) {
+      lines.push(`ARG ${key}`);
+      continue;
+    }
+
+    lines.push(`ARG ${key}=${String(value)}`);
+  }
+
+  const workdir = inferStageWorkdir(stage);
+  if (workdir) {
+    lines.push(`WORKDIR ${workdir}`);
+  }
+
+  for (const item of stage.copy ?? []) {
+    lines.push(`COPY ${item.src} ${item.dest}`);
+  }
+
+  for (const command of stage.run ?? []) {
+    lines.push(`RUN ${command}`);
+  }
+
+  for (const [key, value] of Object.entries(stage.env ?? {})) {
+    lines.push(`ENV ${key}=${value}`);
+  }
+
+  for (const port of stage.expose ?? []) {
+    lines.push(`EXPOSE ${port}`);
+  }
+
+  if (stage.entrypoint && stage.entrypoint.length > 0) {
+    lines.push(`ENTRYPOINT ${jsonArray(stage.entrypoint)}`);
+  }
+
+  if (stage.cmd && stage.cmd.length > 0) {
+    lines.push(`CMD ${jsonArray(stage.cmd)}`);
+  }
+
+  return lines;
+}
+
 export function generateDockerfile(spec: DockerYamlV1): string {
+  if (spec.stages && spec.stages.length > 0) {
+    const stageBlocks = spec.stages.map((stage) => stageToLines(stage).join("\n"));
+    return `${stageBlocks.join("\n\n")}\n`;
+  }
+
   const lines: string[] = [];
 
   lines.push(`FROM ${spec.from}`);
+
+  for (const [key, value] of Object.entries(spec.arg ?? {})) {
+    if (value === null) {
+      lines.push(`ARG ${key}`);
+      continue;
+    }
+
+    lines.push(`ARG ${key}=${String(value)}`);
+  }
 
   const workdir = inferWorkdir(spec);
   if (workdir) {

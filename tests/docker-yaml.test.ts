@@ -5,6 +5,11 @@ import { generate, parse, validate } from "../src/index.js";
 const validFixturePath = new URL("./fixtures/valid.yaml", import.meta.url);
 const invalidFixturePath = new URL("./fixtures/invalid.yaml", import.meta.url);
 const entrypointWorkdirFixturePath = new URL("./fixtures/entrypoint-workdir.yaml", import.meta.url);
+const multiStageFixturePath = new URL("./fixtures/multi-stage.yaml", import.meta.url);
+const multiStageInvalidFixturePath = new URL("./fixtures/multi-stage-invalid.yaml", import.meta.url);
+const argSingleStageFixturePath = new URL("./fixtures/arg-single-stage.yaml", import.meta.url);
+const argMultiStageFixturePath = new URL("./fixtures/arg-multi-stage.yaml", import.meta.url);
+const argInvalidFixturePath = new URL("./fixtures/arg-invalid.yaml", import.meta.url);
 
 const expectedDockerfile = [
   "FROM node:22-alpine",
@@ -58,5 +63,52 @@ describe("docker-yaml API", () => {
     const dockerfile = generate(content);
 
     expect(dockerfile).toContain('ENTRYPOINT ["node", "server.js"]');
+  });
+
+  it("gera Dockerfile multi-stage quando stages e informado", async () => {
+    const content = await readFile(multiStageFixturePath, "utf8");
+    const dockerfile = generate(content);
+
+    expect(dockerfile).toContain("FROM node:22-alpine");
+    expect(dockerfile).toContain("FROM nginx:alpine");
+    expect(dockerfile).toContain("RUN npm run build");
+    expect(dockerfile).toContain("EXPOSE 80");
+  });
+
+  it("invalida quando mistura from raiz com stages", async () => {
+    const content = await readFile(multiStageInvalidFixturePath, "utf8");
+    const parsed = parse(content);
+    const result = validate(parsed);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.path === "from")).toBe(true);
+  });
+
+  it("gera ARG no modo single-stage", async () => {
+    const content = await readFile(argSingleStageFixturePath, "utf8");
+    const dockerfile = generate(content);
+
+    expect(dockerfile).toContain("ARG NODE_VERSION=22");
+    expect(dockerfile).toContain("ARG APP_ENV=production");
+    expect(dockerfile).toContain("ARG ENABLE_DEBUG=false");
+    expect(dockerfile).toContain("ARG OPTIONAL_VALUE");
+  });
+
+  it("gera ARG em cada stage no modo multi-stage", async () => {
+    const content = await readFile(argMultiStageFixturePath, "utf8");
+    const dockerfile = generate(content);
+
+    expect(dockerfile).toContain("ARG BUILD_MODE=production");
+    expect(dockerfile).toContain("ARG OPTIONAL_TOKEN");
+    expect(dockerfile).toContain("ARG NGINX_PORT=80");
+  });
+
+  it("invalida ARG com tipo nao suportado", async () => {
+    const content = await readFile(argInvalidFixturePath, "utf8");
+    const parsed = parse(content);
+    const result = validate(parsed);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.path === "arg.BAD_VALUE")).toBe(true);
   });
 });

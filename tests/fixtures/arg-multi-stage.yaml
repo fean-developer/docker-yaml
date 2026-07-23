@@ -1,0 +1,14 @@
+version: 1
+stages:
+  - from: node:22-alpine
+    arg:
+      BUILD_MODE: production
+      OPTIONAL_TOKEN: null
+    workdir: /app
+    run:
+      - npm ci
+  - from: nginx:alpine
+    arg:
+      NGINX_PORT: 80
+    expose:
+      - 80

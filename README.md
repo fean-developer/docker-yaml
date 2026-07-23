@@ -33,6 +33,10 @@ docker-yaml generate docker.yaml --out Dockerfile
 ```yaml
 version: 1
 from: node:22-alpine
+arg:
+  NODE_VERSION: 22
+  APP_ENV: production
+  OPTIONAL_TOKEN: null
 workdir: /workspace
 copy:
   - src: .
@@ -52,10 +56,36 @@ cmd:
   - start
 ```
 
+## Exemplo multi-stage
+
+```yaml
+version: 1
+stages:
+  - from: node:22-alpine
+    arg:
+      BUILD_MODE: production
+    workdir: /app
+    copy:
+      - src: .
+        dest: /app
+    run:
+      - npm install
+      - npm run build
+  - from: nginx:alpine
+    copy:
+      - src: /app/dist
+        dest: /usr/share/nginx/html
+    expose:
+      - 80
+```
+
 ## Exemplo de saida
 
 ```dockerfile
 FROM node:22-alpine
+ARG NODE_VERSION=22
+ARG APP_ENV=production
+ARG OPTIONAL_TOKEN
 WORKDIR /workspace
 COPY . /app
 RUN npm install
@@ -85,6 +115,7 @@ if (result.valid) {
 Campos suportados:
 - `version`
 - `from`
+- `arg`
 - `workdir`
 - `copy`
 - `run`
@@ -92,3 +123,4 @@ Campos suportados:
 - `expose`
 - `entrypoint`
 - `cmd`
+- `stages` (modo multi-stage basico)

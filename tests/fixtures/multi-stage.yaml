@@ -1,0 +1,20 @@
+version: 1
+stages:
+  - from: node:22-alpine
+    workdir: /app
+    copy:
+      - src: .
+        dest: /app
+    run:
+      - npm install
+      - npm run build
+  - from: nginx:alpine
+    copy:
+      - src: /app/dist
+        dest: /usr/share/nginx/html
+    expose:
+      - 80
+    cmd:
+      - nginx
+      - -g
+      - daemon off;

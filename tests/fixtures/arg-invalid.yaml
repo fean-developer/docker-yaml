@@ -1,0 +1,5 @@
+version: 1
+from: node:22-alpine
+arg:
+  BAD_VALUE:
+    nested: true

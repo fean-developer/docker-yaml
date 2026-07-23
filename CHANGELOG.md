@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 - 2026-07-23
+- Suporte a `arg` em single-stage e multi-stage.
+- Geracao de `ARG CHAVE=valor` e `ARG CHAVE` (quando valor e `null`).
+- Validacao de tipo para valores de `arg` (string, numero, boolean ou null).
+- Novos testes de API e CLI cobrindo casos validos e invalidos de `arg`.
+
+## 0.3.0 - 2026-07-23
+- Suporte a `stages` para geracao de Dockerfile multi-stage basico.
+- Validacao de conflitos entre modo single-stage e multi-stage.
+- Novos testes para API e CLI cobrindo casos multi-stage validos e invalidos.
+
 ## 0.2.0 - 2026-07-23
 - Suporte a `workdir` explicito com precedencia sobre inferencia por `copy.dest`.
 - Suporte a `entrypoint` com geracao `ENTRYPOINT` em exec form.

@@ -1,0 +1,10 @@
+version: 1
+from: node:22-alpine
+arg:
+  NODE_VERSION: 22
+  APP_ENV: production
+  ENABLE_DEBUG: false
+  OPTIONAL_VALUE: null
+workdir: /app
+run:
+  - echo Building for ${APP_ENV}
