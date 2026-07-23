@@ -2,11 +2,36 @@
 
 Biblioteca e CLI em TypeScript para validar um YAML simples e gerar `Dockerfile`.
 
-## Instalacao
+**Status**: ✅ v0.8.0 - Seguro para produção | [Análise de Segurança](SECURITY.md)
+
+## Instalação
+
+### Como dependência do projeto
 
 ```bash
-npm install
+npm install docker-yaml
 ```
+
+### Instalação global (recomendado para uso em CLI)
+
+```bash
+# Instalar globalmente
+npm install -g docker-yaml
+
+# Verificar instalação
+docker-yaml --help
+
+# Atualizar
+npm install -g docker-yaml@latest
+
+# Remover
+npm uninstall -g docker-yaml
+```
+
+### Requisitos
+
+- Node.js >= 20
+- npm >= 10
 
 ## CLI
 
@@ -26,6 +51,12 @@ docker-yaml generate docker.yaml
 
 ```bash
 docker-yaml generate docker.yaml --out Dockerfile
+```
+
+### Versão
+
+```bash
+docker-yaml --version
 ```
 
 ## Exemplo de entrada
@@ -221,3 +252,109 @@ Campos suportados:
 - `stages` (modo multi-stage basico)
 - `order`
   - `before`/`after` para qualquer chave: `arg`, `workdir`, `copy`, `add`, `run`, `env`, `expose`, `label`, `volume`, `user`, `healthcheck`, `entrypoint`, `cmd`, `stopsignal`
+
+## 🔒 Segurança
+
+### ⚠️ Importante: Dados Sensíveis
+
+**NÃO coloque credentials em ARG ou ENV**:
+
+```yaml
+# ❌ NÃO FAZER ISSO
+version: 1
+from: node:22-alpine
+arg:
+  NPM_TOKEN: "npm_xxxxxxxxxxxxx"
+env:
+  DATABASE_PASSWORD: "super_secret_password"
+```
+
+**Por que**: Valores aparecem no Dockerfile e em `docker history`.
+
+### ✅ Forma Correta: Docker BuildKit Secrets
+
+```bash
+# 1. Criar secret
+docker build \
+  --secret npm_token=$(cat ~/.npmrc) \
+  -t myapp:latest .
+
+# 2. Gerar Dockerfile sem credenciais
+docker-yaml generate spec.yaml --out Dockerfile
+```
+
+```dockerfile
+# Dockerfile (gerado - seguro)
+FROM node:22-alpine
+ARG NODE_ENV=production    # ✅ OK - não sensível
+RUN --mount=type=secret,id=npm_token \
+    cat /run/secrets/npm_token > ~/.npmrc && \
+    npm install && \
+    rm ~/.npmrc
+```
+
+### Boas Práticas
+
+1. ✅ Use apenas dados **não-sensíveis** em ARG/ENV
+2. ✅ Passe credentials via `--secret` do Docker
+3. ✅ Verifique [SECURITY.md](SECURITY.md) para análise completa
+4. ✅ Escaneie imagens: `trivy image myapp:latest`
+5. ✅ Mantenha dependências atualizadas: `npm audit`
+
+---
+
+## 📚 Documentação Adicional
+
+- [SECURITY.md](SECURITY.md) - Análise de segurança detalhada
+- [NPM_PUBLISH.md](NPM_PUBLISH.md) - Guia de publicação no npm
+- [CHANGELOG.md](CHANGELOG.md) - Histórico de versões
+
+---
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Por favor:
+
+1. Fork o repositório
+2. Crie uma branch: `git checkout -b feat/sua-feature`
+3. Commit suas mudanças: `git commit -m 'feat: adicione feature'`
+4. Push para branch: `git push origin feat/sua-feature`
+5. Abra um Pull Request
+
+### Executar localmente
+
+```bash
+# Clone
+git clone https://github.com/seu-usuario/docker-yaml.git
+cd docker-yaml
+
+# Instale
+npm install
+
+# Desenvolva
+npm run dev
+
+# Teste
+npm test
+
+# Build
+npm run build
+```
+
+---
+
+## 📄 Licença
+
+MIT - Veja [LICENSE](LICENSE) para detalhes
+
+---
+
+## 🆘 Suporte
+
+- 📧 Issues: [GitHub Issues](https://github.com/seu-usuario/docker-yaml/issues)
+- 🔒 Segurança: Veja [SECURITY.md](SECURITY.md) para reportar vulnerabilidades
+- 📖 Documentação: Este README + arquivos .md
+
+---
+
+**Última atualização**: 2026-07-24 | **Versão**: v0.8.0
