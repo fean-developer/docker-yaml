@@ -1,0 +1,7 @@
+version: 1
+from: node:20-alpine
+label:
+  maintainer: user@example.com
+  version: "1.0.0"
+  description: "Node.js application"
+  org.opencontainers.image.created: "2024-01-15T10:30:00Z"

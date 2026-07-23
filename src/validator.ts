@@ -1,10 +1,10 @@
 import type { DockerStage, DockerYamlV1, ValidationError, ValidationResult } from "./types.js";
 
-const ORDER_ANCHORS = new Set(["from", "arg", "workdir", "copy", "run", "env", "expose", "user", "entrypoint", "cmd"]);
-const ORDER_KEYS = new Set(["arg", "workdir", "copy", "run", "env", "expose", "user", "entrypoint", "cmd"]);
-const ALLOWED_FIELDS = new Set(["version", "from", "arg", "workdir", "copy", "run", "env", "expose", "user", "entrypoint", "cmd", "order", "stages"]);
-const STAGE_ALLOWED_FIELDS = new Set(["from", "arg", "workdir", "copy", "run", "env", "expose", "user", "entrypoint", "cmd", "order"]);
-const ROOT_STAGE_FIELDS = ["from", "arg", "workdir", "copy", "run", "env", "expose", "user", "entrypoint", "cmd", "order"] as const;
+const ORDER_ANCHORS = new Set(["from", "shell", "arg", "workdir", "copy", "add", "run", "env", "expose", "label", "volume", "user", "healthcheck", "entrypoint", "cmd", "stopsignal"]);
+const ORDER_KEYS = new Set(["shell", "arg", "workdir", "copy", "add", "run", "env", "expose", "label", "volume", "user", "healthcheck", "entrypoint", "cmd", "stopsignal"]);
+const ALLOWED_FIELDS = new Set(["version", "from", "shell", "arg", "workdir", "copy", "add", "run", "env", "expose", "label", "volume", "user", "healthcheck", "entrypoint", "cmd", "stopsignal", "order", "stages"]);
+const STAGE_ALLOWED_FIELDS = new Set(["from", "shell", "arg", "workdir", "copy", "add", "run", "env", "expose", "label", "volume", "user", "healthcheck", "entrypoint", "cmd", "stopsignal", "order"]);
+const ROOT_STAGE_FIELDS = ["from", "shell", "arg", "workdir", "copy", "add", "run", "env", "expose", "label", "volume", "user", "healthcheck", "entrypoint", "cmd", "stopsignal", "order"] as const;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -242,6 +242,116 @@ function validateStageFields(stage: Partial<DockerStage>, prefix: string, errors
     }
   }
 
+  if (stage.shell !== undefined) {
+    if (!Array.isArray(stage.shell)) {
+      pushError(errors, path("shell"), "deve ser uma lista");
+    } else {
+      if (stage.shell.length === 0) {
+        pushError(errors, path("shell"), "deve conter ao menos um item");
+      }
+
+      stage.shell.forEach((item, index) => {
+        if (typeof item !== "string" || item.trim().length === 0) {
+          pushError(errors, `${path("shell")}[${index}]`, "deve ser string nao vazia");
+        }
+      });
+    }
+  }
+
+  if (stage.add !== undefined) {
+    if (!Array.isArray(stage.add)) {
+      pushError(errors, path("add"), "deve ser uma lista");
+    } else {
+      stage.add.forEach((item, index) => {
+        if (!isObject(item)) {
+          pushError(errors, `${path("add")}[${index}]`, "deve ser um objeto com src e dest");
+          return;
+        }
+
+        if (typeof item.src !== "string" || item.src.trim().length === 0) {
+          pushError(errors, `${path("add")}[${index}].src`, "deve ser string nao vazia");
+        }
+
+        if (typeof item.dest !== "string" || item.dest.trim().length === 0) {
+          pushError(errors, `${path("add")}[${index}].dest`, "deve ser string nao vazia");
+        }
+
+        if (item.chown !== undefined && (typeof item.chown !== "string" || item.chown.trim().length === 0)) {
+          pushError(errors, `${path("add")}[${index}].chown`, "deve ser string nao vazia");
+        }
+      });
+    }
+  }
+
+  if (stage.label !== undefined) {
+    if (!isObject(stage.label)) {
+      pushError(errors, path("label"), "deve ser um objeto chave-valor");
+    } else {
+      for (const [key, value] of Object.entries(stage.label)) {
+        if (key.trim().length === 0) {
+          pushError(errors, path("label"), "nao pode conter chave vazia");
+        }
+        if (typeof value !== "string") {
+          pushError(errors, `${path("label")}.${key}`, "deve ser string");
+        }
+      }
+    }
+  }
+
+  if (stage.volume !== undefined) {
+    if (Array.isArray(stage.volume)) {
+      stage.volume.forEach((item, index) => {
+        if (typeof item !== "string" || item.trim().length === 0) {
+          pushError(errors, `${path("volume")}[${index}]`, "deve ser string nao vazia");
+        }
+      });
+    } else if (isObject(stage.volume)) {
+      if (!Array.isArray(stage.volume.paths)) {
+        pushError(errors, `${path("volume")}.paths`, "deve ser uma lista");
+      } else {
+        stage.volume.paths.forEach((item, index) => {
+          if (typeof item !== "string" || item.trim().length === 0) {
+            pushError(errors, `${path("volume")}.paths[${index}]`, "deve ser string nao vazia");
+          }
+        });
+      }
+    } else {
+      pushError(errors, path("volume"), "deve ser lista ou objeto { paths: [...] }");
+    }
+  }
+
+  if (stage.healthcheck !== undefined) {
+    if (!isObject(stage.healthcheck)) {
+      pushError(errors, path("healthcheck"), "deve ser um objeto");
+    } else {
+      if (typeof stage.healthcheck.cmd !== "string" || stage.healthcheck.cmd.trim().length === 0) {
+        pushError(errors, `${path("healthcheck")}.cmd`, "deve ser string nao vazia");
+      }
+
+      if (stage.healthcheck.interval !== undefined && (typeof stage.healthcheck.interval !== "string" || stage.healthcheck.interval.trim().length === 0)) {
+        pushError(errors, `${path("healthcheck")}.interval`, "deve ser string nao vazia");
+      }
+
+      if (stage.healthcheck.timeout !== undefined && (typeof stage.healthcheck.timeout !== "string" || stage.healthcheck.timeout.trim().length === 0)) {
+        pushError(errors, `${path("healthcheck")}.timeout`, "deve ser string nao vazia");
+      }
+
+      if (stage.healthcheck.retries !== undefined && (!Number.isInteger(stage.healthcheck.retries) || stage.healthcheck.retries < 1)) {
+        pushError(errors, `${path("healthcheck")}.retries`, "deve ser numero inteiro >= 1");
+      }
+
+      if (stage.healthcheck.startPeriod !== undefined && (typeof stage.healthcheck.startPeriod !== "string" || stage.healthcheck.startPeriod.trim().length === 0)) {
+        pushError(errors, `${path("healthcheck")}.startPeriod`, "deve ser string nao vazia");
+      }
+    }
+  }
+
+  if (stage.stopsignal !== undefined) {
+    if (typeof stage.stopsignal !== "string" || stage.stopsignal.trim().length === 0) {
+      pushError(errors, path("stopsignal"), "deve ser string nao vazia");
+    }
+  }
+
   if (stage.order !== undefined) {
     if (!isObject(stage.order)) {
       pushError(errors, path("order"), "deve ser um objeto");
@@ -277,11 +387,11 @@ function normalizeExposePorts(expose: DockerStage["expose"]): number[] | null {
 
 function validateBeforeAfter(before: unknown, after: unknown, basePath: string, errors: ValidationError[]): void {
   if (before !== undefined && (typeof before !== "string" || !ORDER_ANCHORS.has(before))) {
-    pushError(errors, `${basePath}.before`, "deve ser uma chave valida (from,arg,workdir,copy,run,env,expose,user,entrypoint,cmd)");
+    pushError(errors, `${basePath}.before`, "deve ser uma chave valida (from,shell,arg,workdir,copy,add,run,env,expose,label,volume,user,healthcheck,entrypoint,cmd,stopsignal)");
   }
 
   if (after !== undefined && (typeof after !== "string" || !ORDER_ANCHORS.has(after))) {
-    pushError(errors, `${basePath}.after`, "deve ser uma chave valida (from,arg,workdir,copy,run,env,expose,user,entrypoint,cmd)");
+    pushError(errors, `${basePath}.after`, "deve ser uma chave valida (from,shell,arg,workdir,copy,add,run,env,expose,label,volume,user,healthcheck,entrypoint,cmd,stopsignal)");
   }
 
   if (before !== undefined && after !== undefined) {

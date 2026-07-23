@@ -13,6 +13,12 @@ const argInvalidFixturePath = new URL("./fixtures/arg-invalid.yaml", import.meta
 const complexFixturePath = new URL("./fixtures/complex.yaml", import.meta.url);
 const runMultilineFixturePath = new URL("./fixtures/run-multiline.yaml", import.meta.url);
 const orderPlacementFixturePath = new URL("./fixtures/order-placement.yaml", import.meta.url);
+const shellFixturePath = new URL("./fixtures/shell.yaml", import.meta.url);
+const addFixturePath = new URL("./fixtures/add.yaml", import.meta.url);
+const labelFixturePath = new URL("./fixtures/label.yaml", import.meta.url);
+const volumeFixturePath = new URL("./fixtures/volume.yaml", import.meta.url);
+const healthcheckFixturePath = new URL("./fixtures/healthcheck.yaml", import.meta.url);
+const stopsignalFixturePath = new URL("./fixtures/stopsignal.yaml", import.meta.url);
 
 const expectedDockerfile = [
   "FROM node:22-alpine",
@@ -164,5 +170,82 @@ describe("docker-yaml API", () => {
 
     expect(exposeIndex).toBeLessThan(argIndex);
     expect(envIndex).toBeGreaterThan(runIndex);
+  });
+
+  it("suporta SHELL instruction", async () => {
+    const content = await readFile(shellFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    expect(dockerfile).toContain('SHELL ["/bin/sh", "-c"]');
+    expect(dockerfile).toContain("RUN echo");
+  });
+
+  it("suporta ADD instruction com chown", async () => {
+    const content = await readFile(addFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    expect(dockerfile).toContain("ADD https://example.com/file.tar.gz /opt/app");
+    expect(dockerfile).toContain("ADD --chown=appuser:appgroup ./local/config.json /etc/app/config.json");
+  });
+
+  it("suporta LABEL instruction", async () => {
+    const content = await readFile(labelFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    expect(dockerfile).toContain('LABEL maintainer="user@example.com"');
+    expect(dockerfile).toContain('LABEL version="1.0.0"');
+    expect(dockerfile).toContain('LABEL description="Node.js application"');
+  });
+
+  it("suporta VOLUME instruction", async () => {
+    const content = await readFile(volumeFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    expect(dockerfile).toContain('VOLUME ["/var/lib/postgresql/data"]');
+    expect(dockerfile).toContain('VOLUME ["/var/log/postgresql"]');
+  });
+
+  it("suporta HEALTHCHECK instruction", async () => {
+    const content = await readFile(healthcheckFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    expect(dockerfile).toContain("HEALTHCHECK CMD curl -f http://localhost/ || exit 1");
+    expect(dockerfile).toContain("--interval=30s");
+    expect(dockerfile).toContain("--timeout=10s");
+    expect(dockerfile).toContain("--retries=3");
+    expect(dockerfile).toContain("--start-period=40s");
+  });
+
+  it("suporta STOPSIGNAL instruction", async () => {
+    const content = await readFile(stopsignalFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    expect(dockerfile).toContain("STOPSIGNAL SIGTERM");
+    expect(dockerfile).toContain("USER appuser");
+    expect(dockerfile).toContain('ENTRYPOINT ["dumb-init", "--"]');
   });
 });

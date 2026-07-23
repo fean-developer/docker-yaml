@@ -1,0 +1,8 @@
+version: 1
+from: postgres:15-alpine
+volume:
+  paths:
+    - /var/lib/postgresql/data
+    - /var/log/postgresql
+env:
+  POSTGRES_DB: mydb

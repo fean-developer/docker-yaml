@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0 - 2026-07-24
+- Suporte a instrucao `SHELL` com array de comandos.
+- Suporte a instrucao `ADD` com `src`, `dest` e opcional `chown`.
+- Suporte a instrucao `LABEL` para metadados de imagem.
+- Suporte a instrucao `VOLUME` com array de caminhos.
+- Suporte a instrucao `HEALTHCHECK` com `cmd`, `interval`, `timeout`, `retries`, `startPeriod`.
+- Suporte a instrucao `STOPSIGNAL` para definir sinal de parada.
+- Atualizacao da ordenacao padrao para incluir 16 instrucoes.
+- Novos testes cobrindo cada instrucao isoladamente.
+
 ## 0.7.0 - 2026-07-23
 - Suporte a ordenacao customizada com `order.<chave>.before|after`.
 - Suporte a `expose` em formato objeto com `ports` e `before/after`.

@@ -1,0 +1,12 @@
+version: 1
+from: alpine:latest
+run: |
+  apk add --no-cache dumb-init
+  adduser -D appuser
+user: appuser
+entrypoint:
+  - dumb-init
+  - --
+cmd:
+  - /app/server
+stopsignal: SIGTERM

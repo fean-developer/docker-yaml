@@ -1,0 +1,8 @@
+version: 1
+from: ubuntu:22.04
+add:
+  - src: https://example.com/file.tar.gz
+    dest: /opt/app
+  - src: ./local/config.json
+    dest: /etc/app/config.json
+    chown: appuser:appgroup

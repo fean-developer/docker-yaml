@@ -115,6 +115,45 @@ order:
     after: run
 ```
 
+## Exemplo com ADD, LABEL e HEALTHCHECK
+
+```yaml
+version: 1
+from: nginx:latest
+label:
+  maintainer: user@example.com
+  version: "1.0.0"
+add:
+  - src: https://example.com/app.tar.gz
+    dest: /opt/app
+run: apt-get update && apt-get install -y curl
+expose:
+  - 80
+  - 443
+healthcheck:
+  cmd: "curl -f http://localhost/ || exit 1"
+  interval: 30s
+  timeout: 10s
+  retries: 3
+```
+
+## Exemplo com SHELL e VOLUME
+
+```yaml
+version: 1
+from: postgres:15-alpine
+shell:
+  - /bin/sh
+  - -c
+volume:
+  paths:
+    - /var/lib/postgresql/data
+    - /var/log/postgresql
+env:
+  POSTGRES_DB: mydb
+  POSTGRES_USER: postgres
+```
+
 ## Exemplo de saida
 
 ```dockerfile
@@ -151,20 +190,34 @@ if (result.valid) {
 Campos suportados:
 - `version`
 - `from`
+- `shell` (array de comandos para shell)
 - `arg`
 - `workdir`
 - `copy`
   - `chown` (opcional por item)
   - `afterRun` (opcional por item)
+- `add`
+  - `chown` (opcional por item)
 - `run`
   - aceita lista de comandos ou string multiline
 - `env`
   - aceita string, numero e boolean
 - `expose`
   - aceita lista simples ou objeto `{ ports, before?, after? }`
+- `label`
+  - objeto key-value para metadados
+- `volume`
+  - aceita lista simples ou objeto `{ paths }`
 - `user`
+- `healthcheck`
+  - `cmd` (obrigatorio)
+  - `interval` (opcional, e.g. "30s")
+  - `timeout` (opcional, e.g. "10s")
+  - `retries` (opcional)
+  - `startPeriod` (opcional, e.g. "40s")
 - `entrypoint`
 - `cmd`
+- `stopsignal`
 - `stages` (modo multi-stage basico)
 - `order`
-  - `before`/`after` para qualquer chave: `arg`, `workdir`, `copy`, `run`, `env`, `expose`, `user`, `entrypoint`, `cmd`
+  - `before`/`after` para qualquer chave: `arg`, `workdir`, `copy`, `add`, `run`, `env`, `expose`, `label`, `volume`, `user`, `healthcheck`, `entrypoint`, `cmd`, `stopsignal`

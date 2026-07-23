@@ -1,0 +1,6 @@
+version: 1
+from: busybox:latest
+shell:
+  - /bin/sh
+  - -c
+run: echo "Hello from shell"
