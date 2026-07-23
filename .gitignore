@@ -2,3 +2,5 @@ node_modules/
 dist/
 .env
 .env.*
+SECURITY.md
+NPM_PUBLISH.md
