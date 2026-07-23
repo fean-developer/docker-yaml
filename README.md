@@ -297,7 +297,7 @@ RUN --mount=type=secret,id=npm_token \
 
 1. ✅ Use apenas dados **não-sensíveis** em ARG/ENV
 2. ✅ Passe credentials via `--secret` do Docker
-3. ✅ Verifique [SECURITY.md](SECURITY.md) para análise completa
+3. ✅ Verifique [Análise de Segurança](SECURITY.md) para análise completa
 4. ✅ Escaneie imagens: `trivy image myapp:latest`
 5. ✅ Mantenha dependências atualizadas: `npm audit`
 
@@ -305,10 +305,9 @@ RUN --mount=type=secret,id=npm_token \
 
 ## 📚 Documentação Adicional
 
-- [SECURITY.md](SECURITY.md) - Análise de segurança detalhada
-- [NPM_PUBLISH.md](NPM_PUBLISH.md) - Guia de publicação no npm
-- [CHANGELOG.md](CHANGELOG.md) - Histórico de versões
-
+- [Análise de Segurança](SECURITY.md) - Análise de segurança detalhada
+- [Changelog](CHANGELOG.md) - Histórico de versões
+- [Github Actions](GITHUB_ACTIONS_GUIDE.md) - Guia de uso em pipeline.
 ---
 
 ## 🤝 Contribuindo
@@ -351,8 +350,8 @@ MIT - Veja [LICENSE](LICENSE) para detalhes
 
 ## 🆘 Suporte
 
-- 📧 Issues: [GitHub Issues](https://github.com/seu-usuario/docker-yaml/issues)
-- 🔒 Segurança: Veja [SECURITY.md](SECURITY.md) para reportar vulnerabilidades
+- 📧 Issues: [GitHub Issues](https://github.com/fean-developer/docker-yaml/issues)
+- 🔒 Segurança: Veja [Análise de Segurança](SECURITY.md) para reportar vulnerabilidades
 - 📖 Documentação: Este README + arquivos .md
 
 ---

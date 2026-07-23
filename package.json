@@ -1,6 +1,5 @@
 {
-  "name": "docker-yaml",
-  "publisher": "@fean-developer",
+  "name": "@fean-developer/docker-yaml",
   "version": "0.8.2",
   "description": "Generate Dockerfile from a simple YAML spec",
   "type": "module",
