@@ -1,0 +1,7 @@
+version: 1
+from: node:20-alpine
+env:
+  REQUIRED_SECRET: ${REQUIRED_SECRET?REQUIRED_SECRET deve ser informado}
+cmd:
+  - node
+  - server.js

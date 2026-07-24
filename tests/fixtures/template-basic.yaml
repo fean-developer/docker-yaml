@@ -1,0 +1,13 @@
+version: 1
+from: node:${NODE_VERSION:-20}-alpine
+workdir: /app
+copy:
+  - src: .
+    dest: /app
+run:
+  - echo ${MESSAGE?MESSAGE obrigatoria}
+env:
+  NODE_ENV: ${APP_ENV}
+cmd:
+  - npm
+  - start

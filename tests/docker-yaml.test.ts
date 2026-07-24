@@ -25,6 +25,9 @@ const servicesFixturePath = new URL("./fixtures/services.yaml", import.meta.url)
 const servicesDuplicateNameInvalidFixturePath = new URL("./fixtures/services-duplicate-name-invalid.yaml", import.meta.url);
 const servicesMultiStageFixturePath = new URL("./fixtures/services-multi-stage.yaml", import.meta.url);
 const servicesMultiStageInvalidFixturePath = new URL("./fixtures/services-multi-stage-invalid.yaml", import.meta.url);
+const templateBasicFixturePath = new URL("./fixtures/template-basic.yaml", import.meta.url);
+const templateRequiredMissingFixturePath = new URL("./fixtures/template-required-missing.yaml", import.meta.url);
+const templateServicesMultiStageFixturePath = new URL("./fixtures/template-services-multi-stage.yaml", import.meta.url);
 
 const expectedDockerfile = [
   "FROM node:22-alpine",
@@ -265,6 +268,49 @@ describe("docker-yaml API", () => {
 
     expect(validation.valid).toBe(false);
     expect(validation.errors.some((error) => error.path === "services[0].from")).toBe(true);
+  });
+
+  it("resolve templates no generate com defaults, required e variaveis explicitas", async () => {
+    const content = await readFile(templateBasicFixturePath, "utf8");
+    const dockerfile = generate(content, {
+      useProcessEnv: false,
+      vars: {
+        APP_ENV: "production",
+        MESSAGE: "ok"
+      }
+    });
+
+    expect(dockerfile).toContain("FROM node:20-alpine");
+    expect(dockerfile).toContain("ENV NODE_ENV=production");
+    expect(dockerfile).toContain("RUN echo ok");
+  });
+
+  it("falha no generate quando template required nao e resolvido", async () => {
+    const content = await readFile(templateRequiredMissingFixturePath, "utf8");
+
+    expect(() =>
+      generate(content, {
+        useProcessEnv: false,
+        vars: {}
+      })
+    ).toThrow(/REQUIRED_SECRET/);
+  });
+
+  it("resolve templates em services multi-stage", async () => {
+    const content = await readFile(templateServicesMultiStageFixturePath, "utf8");
+    const dockerfile = generate(content, {
+      name: "dotnet-api",
+      useProcessEnv: false,
+      vars: {
+        DOTNET_SDK_VERSION: "8.0",
+        DOTNET_RUNTIME_VERSION: "8.0",
+        APP_DLL: "Api.dll"
+      }
+    });
+
+    expect(dockerfile).toContain("FROM mcr.microsoft.com/dotnet/sdk:8.0");
+    expect(dockerfile).toContain("FROM mcr.microsoft.com/dotnet/aspnet:8.0");
+    expect(dockerfile).toContain('ENTRYPOINT ["dotnet", "Api.dll"]');
   });
 
   it("suporta SHELL instruction", async () => {

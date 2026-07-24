@@ -1,14 +1,25 @@
 #!/usr/bin/env node
-import { readFile, writeFile } from "node:fs/promises";
+import { access, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { parseDockerYaml } from "./parser.js";
+import { mergeVariables, parseEnvLikeContent, resolveTemplates, type TemplateVariables } from "./template.js";
 import { assertDockerYamlV1, validateDockerYaml } from "./validator.js";
 import { generateDockerfile } from "./generator.js";
 import type { DockerYamlV1, DockerYamlV1Services } from "./types.js";
 
 function printUsage(): void {
   console.log("Uso:");
-  console.log("  docker-yaml validate <arquivo.yaml> [--name <service>] [--out <Dockerfile>]");
-  console.log("  docker-yaml generate <arquivo.yaml> [--name <service>] [--out <Dockerfile>]");
+  console.log("  docker-yaml --help");
+  console.log("  docker-yaml --version");
+  console.log("  docker-yaml validate <arquivo.yaml> [--name <service>] [--out <Dockerfile>] [--vars-file <arquivo>] [--var CHAVE=valor]");
+  console.log("  docker-yaml generate <arquivo.yaml> [--name <service>] [--out <Dockerfile>] [--vars-file <arquivo>] [--var CHAVE=valor]");
+}
+
+async function printVersion(): Promise<void> {
+  const packageJsonPath = new URL("../package.json", import.meta.url);
+  const raw = await readFile(packageJsonPath, "utf8");
+  const pkg = JSON.parse(raw) as { version?: string };
+  process.stdout.write(`${pkg.version ?? "0.0.0"}\n`);
 }
 
 function printValidationErrors(): (errors: Array<{ path: string; message: string }>) => void {
@@ -32,7 +43,23 @@ async function loadYamlFile(path: string): Promise<string> {
 async function run(): Promise<number> {
   const [, , command, filePath, ...restArgs] = process.argv;
 
-  if (!command || !filePath) {
+  if (!command || command === "--help" || command === "-h") {
+    printUsage();
+    return 0;
+  }
+
+  if (command === "--version" || command === "-v") {
+    try {
+      await printVersion();
+      return 0;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "falha ao carregar versao";
+      console.error(`Nao foi possivel obter versao: ${message}`);
+      return 1;
+    }
+  }
+
+  if (!filePath) {
     printUsage();
     return 1;
   }
@@ -61,6 +88,8 @@ async function run(): Promise<number> {
 
   let outPath: string | null = null;
   let serviceName: string | null = null;
+  const varsFiles: string[] = [];
+  const cliVars: TemplateVariables = {};
 
   for (let index = 0; index < restArgs.length; index += 1) {
     const arg = restArgs[index];
@@ -87,17 +116,63 @@ async function run(): Promise<number> {
       continue;
     }
 
+    if (arg === "--vars-file") {
+      const next = restArgs[index + 1];
+      if (!next) {
+        console.error("Parametro ausente para --vars-file");
+        return 1;
+      }
+      varsFiles.push(next);
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--var") {
+      const next = restArgs[index + 1];
+      if (!next) {
+        console.error("Parametro ausente para --var");
+        return 1;
+      }
+
+      const separatorIndex = next.indexOf("=");
+      if (separatorIndex < 1) {
+        console.error(`Formato invalido para --var: ${next}. Use CHAVE=valor`);
+        return 1;
+      }
+
+      const key = next.slice(0, separatorIndex).trim();
+      const value = next.slice(separatorIndex + 1);
+      cliVars[key] = value;
+      index += 1;
+      continue;
+    }
+
     console.error(`Parametro desconhecido: ${arg}`);
     return 1;
   }
 
-  const validation = validateDockerYaml(parsed);
+  const fileBasedVars = await loadTemplateVariables(filePath, varsFiles);
+  const variables = mergeVariables([process.env as TemplateVariables, fileBasedVars, cliVars]);
+  const templated = resolveTemplates(parsed, {
+    variables,
+    strict: false
+  });
+
+  if (templated.errors.length > 0) {
+    console.error("Templates invalidos:");
+    for (const error of templated.errors) {
+      console.error(`- ${error.path}: ${error.message}`);
+    }
+    return 1;
+  }
+
+  const validation = validateDockerYaml(templated.value);
   if (!validation.valid) {
     printValidationErrors()(validation.errors);
     return 1;
   }
 
-  const spec = assertDockerYamlV1(parsed);
+  const spec = assertDockerYamlV1(templated.value);
   const hasServices = isServicesSpec(spec);
 
   if (serviceName && !hasServices) {
@@ -146,6 +221,34 @@ async function run(): Promise<number> {
 
   process.stdout.write(dockerfile);
   return 0;
+}
+
+async function loadTemplateVariables(specPath: string, explicitVarsFiles: string[]): Promise<TemplateVariables> {
+  const specDir = dirname(resolve(specPath));
+  const autoFiles = [resolve(specDir, ".env"), resolve(specDir, ".vars")];
+  const explicitFiles = explicitVarsFiles.map((file) => resolve(file));
+  const allFiles = [...autoFiles, ...explicitFiles];
+
+  const merged: TemplateVariables = {};
+  for (const filePath of allFiles) {
+    if (!(await exists(filePath))) {
+      continue;
+    }
+
+    const content = await readFile(filePath, "utf8");
+    Object.assign(merged, parseEnvLikeContent(content));
+  }
+
+  return merged;
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isServicesSpec(spec: DockerYamlV1): spec is DockerYamlV1Services {

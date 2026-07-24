@@ -1,0 +1,14 @@
+version: 1
+from: node:${NODE_VERSION}-alpine
+workdir: /app
+copy:
+  - src: .
+    dest: /app
+env:
+  NODE_ENV: ${APP_ENV}
+  API_URL: ${API_URL:-http://localhost:3000}
+run:
+  - echo '$${NODE_VERSION}'
+cmd:
+  - npm
+  - start

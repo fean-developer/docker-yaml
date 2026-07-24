@@ -1,5 +1,6 @@
 import { parseDockerYaml } from "./parser.js";
 import { generateDockerfile } from "./generator.js";
+import { mergeVariables, resolveTemplates, type TemplateVariables } from "./template.js";
 import { assertDockerYamlV1, validateDockerYaml } from "./validator.js";
 import type { DockerYamlV1, ValidationResult } from "./types.js";
 
@@ -24,8 +25,31 @@ export function parseAndValidate(content: string): { spec: DockerYamlV1; validat
   return { spec: assertDockerYamlV1(parsed), validation };
 }
 
-export function generate(content: string, options: { name?: string } = {}): string {
+export type GenerateOptions = {
+  name?: string;
+  vars?: TemplateVariables;
+  useProcessEnv?: boolean;
+  strictTemplates?: boolean;
+};
+
+export function generate(content: string, options: GenerateOptions = {}): string {
   const parsed = parseDockerYaml(content);
-  const spec = assertDockerYamlV1(parsed);
-  return generateDockerfile(spec, options);
+
+  const mergedVars = mergeVariables([
+    options.useProcessEnv === false ? {} : (process.env as TemplateVariables),
+    options.vars ?? {}
+  ]);
+
+  const resolved = resolveTemplates(parsed, {
+    variables: mergedVars,
+    strict: options.strictTemplates === true
+  });
+
+  if (resolved.errors.length > 0) {
+    const details = resolved.errors.map((error) => `${error.path}: ${error.message}`).join("; ");
+    throw new Error(`Templates invalidos: ${details}`);
+  }
+
+  const spec = assertDockerYamlV1(resolved.value);
+  return generateDockerfile(spec, { name: options.name });
 }

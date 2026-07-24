@@ -20,8 +20,23 @@ const orderPlacementFixturePath = new URL("./fixtures/order-placement.yaml", imp
 const servicesFixturePath = new URL("./fixtures/services.yaml", import.meta.url);
 const orderUserAfterMultipleFixturePath = new URL("./fixtures/order-user-after-multiple.yaml", import.meta.url);
 const servicesMultiStageFixturePath = new URL("./fixtures/services-multi-stage.yaml", import.meta.url);
+const templateBasicFixturePath = new URL("./fixtures/template-basic.yaml", import.meta.url);
+const templateRequiredMissingFixturePath = new URL("./fixtures/template-required-missing.yaml", import.meta.url);
+const templateEnvSpecFixturePath = new URL("./fixtures/template-env/spec.yaml", import.meta.url);
 
 describe("docker-yaml CLI", () => {
+  it("--version exibe a versao do package.json", async () => {
+    const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
+    const { stdout } = await execFileAsync("node", ["--import", "tsx", cliPath.pathname, "--version"]);
+    expect(stdout.trim()).toBe(packageJson.version);
+  });
+
+  it("-v exibe a versao do package.json", async () => {
+    const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
+    const { stdout } = await execFileAsync("node", ["--import", "tsx", cliPath.pathname, "-v"]);
+    expect(stdout.trim()).toBe(packageJson.version);
+  });
+
   it("validate retorna sucesso para fixture valida", async () => {
     const { stdout } = await execFileAsync("node", ["--import", "tsx", cliPath.pathname, "validate", validFixturePath.pathname]);
     expect(stdout).toContain("Spec valida");
@@ -201,5 +216,73 @@ describe("docker-yaml CLI", () => {
     expect(fromCount).toBe(2);
     expect(stdout).toContain("FROM mcr.microsoft.com/dotnet/sdk:8.0");
     expect(stdout).toContain("FROM mcr.microsoft.com/dotnet/aspnet:8.0");
+  });
+
+  it("generate resolve variaveis do shell", async () => {
+    const { stdout } = await execFileAsync(
+      "node",
+      ["--import", "tsx", cliPath.pathname, "generate", templateBasicFixturePath.pathname, "--var", "APP_ENV=production", "--var", "MESSAGE=ok"],
+      {
+        env: {
+          ...process.env,
+          NODE_VERSION: "22"
+        }
+      }
+    );
+
+    expect(stdout).toContain("FROM node:22-alpine");
+    expect(stdout).toContain("ENV NODE_ENV=production");
+    expect(stdout).toContain("RUN echo ok");
+  });
+
+  it("generate usa .env e .vars automaticamente", async () => {
+    const { stdout } = await execFileAsync("node", ["--import", "tsx", cliPath.pathname, "generate", templateEnvSpecFixturePath.pathname]);
+
+    expect(stdout).toContain("FROM node:18-alpine");
+    expect(stdout).toContain("ENV NODE_ENV=production");
+    expect(stdout).toContain("ENV API_URL=https://api.from.env");
+    expect(stdout).toContain("RUN echo '${NODE_VERSION}'");
+  });
+
+  it("--var tem precedencia sobre .env/.vars", async () => {
+    const { stdout } = await execFileAsync("node", [
+      "--import",
+      "tsx",
+      cliPath.pathname,
+      "generate",
+      templateEnvSpecFixturePath.pathname,
+      "--var",
+      "NODE_VERSION=20",
+      "--var",
+      "APP_ENV=qa"
+    ]);
+
+    expect(stdout).toContain("FROM node:20-alpine");
+    expect(stdout).toContain("ENV NODE_ENV=qa");
+  });
+
+  it("--vars-file e suportado", async () => {
+    const customVarsPath = new URL("./fixtures/template-env/.env", import.meta.url);
+    const { stdout } = await execFileAsync("node", [
+      "--import",
+      "tsx",
+      cliPath.pathname,
+      "generate",
+      templateBasicFixturePath.pathname,
+      "--vars-file",
+      customVarsPath.pathname,
+      "--var",
+      "MESSAGE=from-var"
+    ]);
+
+    expect(stdout).toContain("FROM node:18-alpine");
+    expect(stdout).toContain("ENV NODE_ENV=staging");
+    expect(stdout).toContain("RUN echo from-var");
+  });
+
+  it("validate falha quando variavel required nao e resolvida", async () => {
+    await expect(
+      execFileAsync("node", ["--import", "tsx", cliPath.pathname, "validate", templateRequiredMissingFixturePath.pathname])
+    ).rejects.toMatchObject({ code: 1 });
   });
 });

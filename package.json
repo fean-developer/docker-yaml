@@ -1,6 +1,6 @@
 {
   "name": "@fean-developer/docker-yaml",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Generate Dockerfile from a simple YAML spec",
   "type": "module",
   "main": "dist/index.js",
@@ -31,6 +31,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "dotenv": "^17.2.2",
     "yaml": "^2.8.1"
   },
   "devDependencies": {

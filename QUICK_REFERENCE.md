@@ -45,6 +45,10 @@ docker-yaml generate docker.yaml --out Dockerfile
 
 # Gerar service especifico
 docker-yaml generate docker.yaml --name node20 --out Dockerfile.node20
+
+# Variaveis de template
+docker-yaml generate docker.yaml --var NODE_VERSION=22 --var APP_ENV=production
+docker-yaml generate docker.yaml --vars-file .env --vars-file .vars
 ```
 
 ---
@@ -255,6 +259,16 @@ arg:
   NPM_TOKEN: "npm_xxxxx"  # NÃO FAZER! Use --secret
 env:
   DB_PASSWORD: "secret"   # NÃO FAZER! Use --secret
+```
+
+## Template strings
+
+```yaml
+from: node:${NODE_VERSION:-20}-alpine
+env:
+  APP_ENV: ${APP_ENV}
+run:
+  - echo ${MESSAGE?MESSAGE obrigatoria}
 ```
 
 ---

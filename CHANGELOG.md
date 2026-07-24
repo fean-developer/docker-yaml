@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.0 - 2026-07-24
+- Suporte completo a templates em strings YAML (`${VAR}`).
+- Suporte a default (`${VAR:-valor}`), required (`${VAR?mensagem}`) e escape (`$${VAR}`).
+- Resolucao de variaveis a partir de:
+	- ambiente shell (`process.env`),
+	- arquivos `.env` e `.vars` no diretorio do spec,
+	- `--vars-file <arquivo>`,
+	- `--var CHAVE=valor` (maior precedencia).
+- Templates agora sao resolvidos antes da validacao e da geracao.
+- Suporte aplicado em single-stage, multi-stage e `services` com multi-stage.
+- Novo guia detalhado de uso: `TEMPLATE_VARIABLES_GUIDE.md`.
+- Novos testes de API e CLI cobrindo os cenarios das 3 fases.
+
 ## 0.10.0 - 2026-07-24
 - Suporte a `multi-stage` dentro de `services` usando `services[].stages`.
 - Cada `service` agora pode ser:

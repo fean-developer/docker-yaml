@@ -2,7 +2,7 @@
 
 Biblioteca e CLI em TypeScript para validar um YAML simples e gerar `Dockerfile`.
 
-**Status**: ✅ v0.10.0 - Seguro para produção | [Análise de Segurança](SECURITY.md)
+**Status**: ✅ v0.11.0 - Seguro para produção | [Análise de Segurança](SECURITY.md)
 
 ## Instalação
 
@@ -66,6 +66,14 @@ docker-yaml generate docker.yaml --out Dockerfile
 ```bash
 # Gerar apenas um service
 docker-yaml generate docker.yaml --name node20 --out Dockerfile.node20
+```
+
+```bash
+# Templates por variavel direta
+docker-yaml generate docker.yaml --var NODE_VERSION=22 --var APP_ENV=production
+
+# Templates via arquivos de variaveis
+docker-yaml generate docker.yaml --vars-file .env --vars-file .vars
 ```
 
 ### Versão
@@ -228,6 +236,25 @@ from: node:22-alpine
 run: |
   addgroup -S appgroup &&
   adduser -S appuser -G appgroup
+```
+
+## Exemplo com template strings
+
+```yaml
+version: 1
+from: node:${NODE_VERSION:-20}-alpine
+workdir: /app
+copy:
+  - src: .
+    dest: /app
+run:
+  - echo ${MESSAGE?MESSAGE obrigatoria}
+env:
+  NODE_ENV: ${APP_ENV}
+  SHOW_LITERAL: $${NODE_VERSION}
+cmd:
+  - npm
+  - start
 ```
 
 ## Exemplo de ordenacao customizada
@@ -417,10 +444,11 @@ RUN --mount=type=secret,id=npm_token \
 
 ---
 
-**Última atualização**: 2026-07-24 | **Versão**: v0.10.0
+**Última atualização**: 2026-07-24 | **Versão**: v0.11.0
 
 - [Análise de Segurança](SECURITY.md) - Análise de segurança detalhada
 - [Changelog](CHANGELOG.md) - Histórico de versões
+- [Template Variables Guide](TEMPLATE_VARIABLES_GUIDE.md) - Guia detalhado de templates
 - [Github Actions](GITHUB_ACTIONS_GUIDE.md) - Guia de uso em pipeline.
 ---
 
@@ -470,4 +498,4 @@ MIT - Veja [LICENSE](LICENSE) para detalhes
 
 ---
 
-**Última atualização**: 2026-07-24 | **Versão**: v0.8.0
+**Última atualização**: 2026-07-24 | **Versão**: v0.11.0
