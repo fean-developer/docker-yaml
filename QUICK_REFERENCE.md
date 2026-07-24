@@ -122,6 +122,16 @@ services:
 | `stages` | array | `[{...}, {...}]` |
 | `order` | object | `{before: {...}, after: {...}}` |
 
+### order com multiplos anchors
+
+```yaml
+order:
+  user:
+    after:
+      - copy
+      - workdir
+```
+
 ---
 
 ## 🎯 Exemplos Comuns

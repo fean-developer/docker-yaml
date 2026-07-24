@@ -24,8 +24,8 @@ export type HealthCheckConfig = {
 export type OrderAnchor = "from" | "shell" | "arg" | "workdir" | "copy" | "add" | "run" | "env" | "expose" | "label" | "volume" | "user" | "healthcheck" | "entrypoint" | "cmd" | "stopsignal";
 
 export type OrderDirective = {
-  before?: OrderAnchor;
-  after?: OrderAnchor;
+  before?: OrderAnchor | OrderAnchor[];
+  after?: OrderAnchor | OrderAnchor[];
 };
 
 export type ExposeConfig = {

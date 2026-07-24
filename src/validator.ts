@@ -438,17 +438,36 @@ function normalizeExposePorts(expose: DockerStage["expose"]): number[] | null {
 }
 
 function validateBeforeAfter(before: unknown, after: unknown, basePath: string, errors: ValidationError[]): void {
-  if (before !== undefined && (typeof before !== "string" || !ORDER_ANCHORS.has(before))) {
-    pushError(errors, `${basePath}.before`, "deve ser uma chave valida (from,shell,arg,workdir,copy,add,run,env,expose,label,volume,user,healthcheck,entrypoint,cmd,stopsignal)");
-  }
-
-  if (after !== undefined && (typeof after !== "string" || !ORDER_ANCHORS.has(after))) {
-    pushError(errors, `${basePath}.after`, "deve ser uma chave valida (from,shell,arg,workdir,copy,add,run,env,expose,label,volume,user,healthcheck,entrypoint,cmd,stopsignal)");
-  }
+  validateAnchorValue(before, `${basePath}.before`, errors);
+  validateAnchorValue(after, `${basePath}.after`, errors);
 
   if (before !== undefined && after !== undefined) {
     pushError(errors, basePath, "nao pode definir before e after ao mesmo tempo");
   }
+}
+
+function validateAnchorValue(value: unknown, path: string, errors: ValidationError[]): void {
+  if (value === undefined) {
+    return;
+  }
+
+  if (typeof value === "string") {
+    if (!ORDER_ANCHORS.has(value)) {
+      pushError(errors, path, "deve ser uma chave valida (from,shell,arg,workdir,copy,add,run,env,expose,label,volume,user,healthcheck,entrypoint,cmd,stopsignal)");
+    }
+    return;
+  }
+
+  if (!Array.isArray(value) || value.length === 0) {
+    pushError(errors, path, "deve ser uma chave valida ou lista de chaves validas");
+    return;
+  }
+
+  value.forEach((item, index) => {
+    if (typeof item !== "string" || !ORDER_ANCHORS.has(item)) {
+      pushError(errors, `${path}[${index}]`, "deve ser uma chave valida (from,shell,arg,workdir,copy,add,run,env,expose,label,volume,user,healthcheck,entrypoint,cmd,stopsignal)");
+    }
+  });
 }
 
 export function assertDockerYamlV1(input: unknown): DockerYamlV1 {

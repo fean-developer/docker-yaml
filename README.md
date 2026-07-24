@@ -2,7 +2,7 @@
 
 Biblioteca e CLI em TypeScript para validar um YAML simples e gerar `Dockerfile`.
 
-**Status**: ✅ v0.9.0 - Seguro para produção | [Análise de Segurança](SECURITY.md)
+**Status**: ✅ v0.9.1 - Seguro para produção | [Análise de Segurança](SECURITY.md)
 
 ## Instalação
 
@@ -212,6 +212,14 @@ expose:
 order:
   env:
     after: run
+
+# Tambem suporta multiplos anchors
+# user sera posicionado depois de copy e workdir
+order:
+  user:
+    after:
+      - copy
+      - workdir
 ```
 
 ## Exemplo com ADD, LABEL e HEALTHCHECK
@@ -320,7 +328,7 @@ Campos suportados:
 - `stopsignal`
 - `stages` (modo multi-stage basico)
 - `order`
-  - `before`/`after` para qualquer chave: `arg`, `workdir`, `copy`, `add`, `run`, `env`, `expose`, `label`, `volume`, `user`, `healthcheck`, `entrypoint`, `cmd`, `stopsignal`
+  - `before`/`after` (string ou lista) para qualquer chave: `arg`, `workdir`, `copy`, `add`, `run`, `env`, `expose`, `label`, `volume`, `user`, `healthcheck`, `entrypoint`, `cmd`, `stopsignal`
 
 ## 🔒 Segurança
 
@@ -372,7 +380,7 @@ RUN --mount=type=secret,id=npm_token \
 
 ---
 
-**Última atualização**: 2026-07-24 | **Versão**: v0.9.0
+**Última atualização**: 2026-07-24 | **Versão**: v0.9.1
 
 - [Análise de Segurança](SECURITY.md) - Análise de segurança detalhada
 - [Changelog](CHANGELOG.md) - Histórico de versões

@@ -18,6 +18,7 @@ const complexFixturePath = new URL("./fixtures/complex.yaml", import.meta.url);
 const runMultilineFixturePath = new URL("./fixtures/run-multiline.yaml", import.meta.url);
 const orderPlacementFixturePath = new URL("./fixtures/order-placement.yaml", import.meta.url);
 const servicesFixturePath = new URL("./fixtures/services.yaml", import.meta.url);
+const orderUserAfterMultipleFixturePath = new URL("./fixtures/order-user-after-multiple.yaml", import.meta.url);
 
 describe("docker-yaml CLI", () => {
   it("validate retorna sucesso para fixture valida", async () => {
@@ -167,5 +168,20 @@ describe("docker-yaml CLI", () => {
     expect(stdout).toContain("Spec valida");
     expect(content).toContain("FROM node:20-alpine");
     expect(content).not.toContain("FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine");
+  });
+
+  it("generate aceita order.after em formato lista", async () => {
+    const { stdout } = await execFileAsync("node", ["--import", "tsx", cliPath.pathname, "generate", orderUserAfterMultipleFixturePath.pathname]);
+
+    const copyIndex = stdout.indexOf("COPY . /app");
+    const workdirIndex = stdout.indexOf("WORKDIR /app");
+    const userIndex = stdout.indexOf("USER node");
+    const entrypointIndex = stdout.indexOf('ENTRYPOINT ["node", "server.js"]');
+
+    expect(copyIndex).toBeGreaterThan(-1);
+    expect(workdirIndex).toBeGreaterThan(-1);
+    expect(userIndex).toBeGreaterThan(copyIndex);
+    expect(userIndex).toBeGreaterThan(workdirIndex);
+    expect(userIndex).toBeLessThan(entrypointIndex);
   });
 });

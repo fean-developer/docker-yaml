@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1 - 2026-07-24
+- Suporte a `order.<chave>.before` e `order.<chave>.after` com lista de anchors.
+- Exemplo: `order.user.after: [copy, workdir]` agora garante `USER` depois de `COPY` e `WORKDIR`.
+- Novos testes de API e CLI cobrindo ordenacao com multiplos anchors.
+
 ## 0.9.0 - 2026-07-24
 - Suporte a multi-Dockerfile via `services` com selecao por nome (`--name <service>`).
 - CLI agora aceita `--name` em `validate` e `generate`.

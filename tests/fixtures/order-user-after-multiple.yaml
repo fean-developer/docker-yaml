@@ -1,0 +1,17 @@
+version: 1
+from: node:20-alpine
+copy:
+  - src: .
+    dest: /app
+run:
+  - npm ci
+workdir: /app
+user: node
+entrypoint:
+  - node
+  - server.js
+order:
+  user:
+    after:
+      - copy
+      - workdir

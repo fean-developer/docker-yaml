@@ -14,6 +14,7 @@ const complexFixturePath = new URL("./fixtures/complex.yaml", import.meta.url);
 const runMultilineFixturePath = new URL("./fixtures/run-multiline.yaml", import.meta.url);
 const orderPlacementFixturePath = new URL("./fixtures/order-placement.yaml", import.meta.url);
 const orderUserAfterCopyFixturePath = new URL("./fixtures/order-user-after-copy.yaml", import.meta.url);
+const orderUserAfterMultipleFixturePath = new URL("./fixtures/order-user-after-multiple.yaml", import.meta.url);
 const shellFixturePath = new URL("./fixtures/shell.yaml", import.meta.url);
 const addFixturePath = new URL("./fixtures/add.yaml", import.meta.url);
 const labelFixturePath = new URL("./fixtures/label.yaml", import.meta.url);
@@ -186,6 +187,26 @@ describe("docker-yaml API", () => {
     expect(copyIndex).toBeGreaterThan(-1);
     expect(userIndex).toBeGreaterThan(copyIndex);
     expect(entrypointIndex).toBeGreaterThan(-1);
+    expect(userIndex).toBeLessThan(entrypointIndex);
+  });
+
+  it("suporta order.user.after como lista de anchors", async () => {
+    const content = await readFile(orderUserAfterMultipleFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    const copyIndex = dockerfile.indexOf("COPY . /app");
+    const workdirIndex = dockerfile.indexOf("WORKDIR /app");
+    const userIndex = dockerfile.indexOf("USER node");
+    const entrypointIndex = dockerfile.indexOf('ENTRYPOINT ["node", "server.js"]');
+
+    expect(copyIndex).toBeGreaterThan(-1);
+    expect(workdirIndex).toBeGreaterThan(-1);
+    expect(userIndex).toBeGreaterThan(copyIndex);
+    expect(userIndex).toBeGreaterThan(workdirIndex);
     expect(userIndex).toBeLessThan(entrypointIndex);
   });
 

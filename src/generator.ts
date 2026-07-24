@@ -153,38 +153,37 @@ function resolveOrder(
         continue;
       }
 
-      const rawAnchor = rule.before ?? rule.after;
-      if (!rawAnchor) {
+      const rawAnchors = rule.before ?? rule.after;
+      if (!rawAnchors) {
         continue;
       }
 
-      const resolvedAnchor = resolveAnchor(active, rawAnchor, options.copyHasAfterRunItems);
-      if (!resolvedAnchor || resolvedAnchor === key) {
-        continue;
-      }
+      const anchors = normalizeAnchors(rawAnchors)
+        .map((anchor) => resolveAnchor(active, anchor, options.copyHasAfterRunItems))
+        .filter((anchor): anchor is OrderAnchor => anchor !== null)
+        .filter((anchor) => anchor !== key);
 
-      const anchorIndex = active.indexOf(resolvedAnchor);
-      if (anchorIndex === -1) {
+      if (anchors.length === 0) {
         continue;
       }
 
       if (rule.before) {
-        if (currentIndex < anchorIndex) {
+        const targetIndex = Math.min(...anchors.map((anchor) => active.indexOf(anchor)).filter((index) => index >= 0));
+        if (targetIndex < 0 || currentIndex < targetIndex) {
           continue;
         }
 
         active.splice(currentIndex, 1);
-        const target = active.indexOf(resolvedAnchor);
-        active.splice(target, 0, key);
+        active.splice(targetIndex, 0, key);
         moved = true;
       } else {
-        if (currentIndex > anchorIndex) {
+        const targetIndex = Math.max(...anchors.map((anchor) => active.indexOf(anchor)).filter((index) => index >= 0));
+        if (targetIndex < 0 || currentIndex > targetIndex) {
           continue;
         }
 
         active.splice(currentIndex, 1);
-        const target = active.indexOf(resolvedAnchor);
-        active.splice(target + 1, 0, key);
+        active.splice(targetIndex + 1, 0, key);
         moved = true;
       }
     }
@@ -195,6 +194,10 @@ function resolveOrder(
   }
 
   return active;
+}
+
+function normalizeAnchors(value: OrderAnchor | OrderAnchor[]): OrderAnchor[] {
+  return Array.isArray(value) ? value : [value];
 }
 
 function resolveAnchor(active: OrderAnchor[], anchor: OrderAnchor, copyHasAfterRunItems: boolean): OrderAnchor | null {
