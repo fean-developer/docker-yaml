@@ -17,6 +17,7 @@ const argInvalidFixturePath = new URL("./fixtures/arg-invalid.yaml", import.meta
 const complexFixturePath = new URL("./fixtures/complex.yaml", import.meta.url);
 const runMultilineFixturePath = new URL("./fixtures/run-multiline.yaml", import.meta.url);
 const orderPlacementFixturePath = new URL("./fixtures/order-placement.yaml", import.meta.url);
+const servicesFixturePath = new URL("./fixtures/services.yaml", import.meta.url);
 
 describe("docker-yaml CLI", () => {
   it("validate retorna sucesso para fixture valida", async () => {
@@ -115,5 +116,56 @@ describe("docker-yaml CLI", () => {
 
     expect(exposeIndex).toBeLessThan(argIndex);
     expect(envIndex).toBeGreaterThan(runIndex);
+  });
+
+  it("validate com --name valida service selecionado", async () => {
+    const { stdout } = await execFileAsync("node", [
+      "--import",
+      "tsx",
+      cliPath.pathname,
+      "validate",
+      servicesFixturePath.pathname,
+      "--name",
+      "dotnet8"
+    ]);
+
+    expect(stdout).toContain("Spec valida");
+  });
+
+  it("generate com --name gera apenas service selecionado", async () => {
+    const { stdout } = await execFileAsync("node", [
+      "--import",
+      "tsx",
+      cliPath.pathname,
+      "generate",
+      servicesFixturePath.pathname,
+      "--name",
+      "node20"
+    ]);
+
+    expect(stdout).toContain("FROM node:20-alpine");
+    expect(stdout).not.toContain("FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine");
+  });
+
+  it("validate com --name e --out grava Dockerfile do service selecionado", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "docker-yaml-"));
+    const outputPath = join(tempDir, "Dockerfile.node20");
+
+    const { stdout } = await execFileAsync("node", [
+      "--import",
+      "tsx",
+      cliPath.pathname,
+      "validate",
+      servicesFixturePath.pathname,
+      "--name",
+      "node20",
+      "--out",
+      outputPath
+    ]);
+
+    const content = await readFile(outputPath, "utf8");
+    expect(stdout).toContain("Spec valida");
+    expect(content).toContain("FROM node:20-alpine");
+    expect(content).not.toContain("FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine");
   });
 });

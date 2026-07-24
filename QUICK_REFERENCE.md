@@ -21,6 +21,12 @@ docker-yaml --version
 
 ```bash
 docker-yaml validate docker.yaml
+
+# Validar service especifico
+docker-yaml validate docker.yaml --name node20
+
+# Validar e gerar arquivo
+docker-yaml validate docker.yaml --name dotnet8 --out Dockerfile.dotnet8
 ```
 
 **Saída sucesso**: ✅ Spec válida  
@@ -36,6 +42,9 @@ docker-yaml generate docker.yaml
 
 # Salvar em arquivo
 docker-yaml generate docker.yaml --out Dockerfile
+
+# Gerar service especifico
+docker-yaml generate docker.yaml --name node20 --out Dockerfile.node20
 ```
 
 ---
@@ -53,7 +62,7 @@ docker-yaml generate --help
 ## 📋 Estrutura Básica do Spec
 
 ```yaml
-version: 1               # Obrigatório
+version: 1               # Obrigatório (ou "v1")
 from: node:20-alpine     # Obrigatório
 arg:                     # Opcional
   KEY: value
@@ -73,6 +82,19 @@ cmd:                     # Opcional
   - start
 ```
 
+### Modo multi-service
+
+```yaml
+version: v1
+services:
+  - name: dotnet8
+    from: mcr.microsoft.com/dotnet/aspnet:8.0-alpine
+    entrypoint: ["dotnet", "App.dll"]
+  - name: node20
+    from: node:20-alpine
+    cmd: ["npm", "start"]
+```
+
 ---
 
 ## 🔧 Campos Suportados
@@ -80,6 +102,7 @@ cmd:                     # Opcional
 | Campo | Tipo | Exemplo |
 |-------|------|---------|
 | `version` | number | `1` |
+| `services` | array | `[{name: "api", from: "node:20"}]` |
 | `from` | string | `node:20-alpine` |
 | `arg` | object | `{ NODE_ENV: production }` |
 | `shell` | array | `["/bin/sh", "-c"]` |

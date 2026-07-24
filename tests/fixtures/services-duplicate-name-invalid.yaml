@@ -1,0 +1,6 @@
+version: 1
+services:
+  - name: api
+    from: node:20-alpine
+  - name: api
+    from: nginx:alpine

@@ -2,7 +2,7 @@
 
 Biblioteca e CLI em TypeScript para validar um YAML simples e gerar `Dockerfile`.
 
-**Status**: ✅ v0.8.0 - Seguro para produção | [Análise de Segurança](SECURITY.md)
+**Status**: ✅ v0.9.0 - Seguro para produção | [Análise de Segurança](SECURITY.md)
 
 ## Instalação
 
@@ -41,6 +41,16 @@ npm uninstall -g docker-yaml
 docker-yaml validate docker.yaml
 ```
 
+```bash
+# Validar apenas um service (quando usar services)
+docker-yaml validate docker.yaml --name node20
+```
+
+```bash
+# Validar e já gravar Dockerfile
+docker-yaml validate docker.yaml --name dotnet8 --out Dockerfile.dotnet8
+```
+
 ### Gerar
 
 ```bash
@@ -51,6 +61,11 @@ docker-yaml generate docker.yaml
 
 ```bash
 docker-yaml generate docker.yaml --out Dockerfile
+```
+
+```bash
+# Gerar apenas um service
+docker-yaml generate docker.yaml --name node20 --out Dockerfile.node20
 ```
 
 ### Versão
@@ -115,6 +130,59 @@ stages:
     expose:
       - 80
 ```
+
+## Exemplo multi-service
+
+```yaml
+version: v1
+services:
+  - name: dotnet8
+    from: mcr.microsoft.com/dotnet/aspnet:8.0-alpine
+    workdir: /app
+    copy:
+      - src: .
+        dest: /app
+    run:
+      - apk add --no-cache tzdata
+    entrypoint:
+      - dotnet
+      - App.dll
+  - name: node20
+    from: node:20-alpine
+    workdir: /app
+    copy:
+      - src: package.json
+        dest: /app
+      - src: .
+        dest: /app
+    run:
+      - npm ci
+      - npm run build
+    cmd:
+      - npm
+      - start
+```
+
+Comandos:
+
+```bash
+# valida tudo
+docker-yaml validate file.yaml
+
+# valida apenas um service
+docker-yaml validate file.yaml --name dotnet8
+
+# gera apenas um service em arquivo
+docker-yaml generate file.yaml --name node20 --out Dockerfile.node20
+```
+
+## Ordenacao padrao (quando order nao e informado)
+
+O gerador aplica a ordem padrao recomendada para manter consistencia:
+
+`FROM -> ENV/LABEL -> RUN -> WORKDIR -> COPY/ADD -> EXPOSE -> USER -> HEALTHCHECK -> ENTRYPOINT -> CMD -> STOPSIGNAL`
+
+Se precisar ajustar, use `order.<instrucao>.before|after`.
 
 ## Exemplo run multiline
 
@@ -219,8 +287,9 @@ if (result.valid) {
 ## Escopo v1
 
 Campos suportados:
-- `version`
+- `version` (`1` ou `v1`)
 - `from`
+- `services` (modo multi-Dockerfile por nome)
 - `shell` (array de comandos para shell)
 - `arg`
 - `workdir`
@@ -303,7 +372,7 @@ RUN --mount=type=secret,id=npm_token \
 
 ---
 
-## 📚 Documentação Adicional
+**Última atualização**: 2026-07-24 | **Versão**: v0.9.0
 
 - [Análise de Segurança](SECURITY.md) - Análise de segurança detalhada
 - [Changelog](CHANGELOG.md) - Histórico de versões

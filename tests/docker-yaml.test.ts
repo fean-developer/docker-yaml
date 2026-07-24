@@ -13,20 +13,23 @@ const argInvalidFixturePath = new URL("./fixtures/arg-invalid.yaml", import.meta
 const complexFixturePath = new URL("./fixtures/complex.yaml", import.meta.url);
 const runMultilineFixturePath = new URL("./fixtures/run-multiline.yaml", import.meta.url);
 const orderPlacementFixturePath = new URL("./fixtures/order-placement.yaml", import.meta.url);
+const orderUserAfterCopyFixturePath = new URL("./fixtures/order-user-after-copy.yaml", import.meta.url);
 const shellFixturePath = new URL("./fixtures/shell.yaml", import.meta.url);
 const addFixturePath = new URL("./fixtures/add.yaml", import.meta.url);
 const labelFixturePath = new URL("./fixtures/label.yaml", import.meta.url);
 const volumeFixturePath = new URL("./fixtures/volume.yaml", import.meta.url);
 const healthcheckFixturePath = new URL("./fixtures/healthcheck.yaml", import.meta.url);
 const stopsignalFixturePath = new URL("./fixtures/stopsignal.yaml", import.meta.url);
+const servicesFixturePath = new URL("./fixtures/services.yaml", import.meta.url);
+const servicesDuplicateNameInvalidFixturePath = new URL("./fixtures/services-duplicate-name-invalid.yaml", import.meta.url);
 
 const expectedDockerfile = [
   "FROM node:22-alpine",
-  "WORKDIR /app",
-  "COPY . /app",
+  "ENV NODE_ENV=production",
   "RUN npm install",
   "RUN npm run build",
-  "ENV NODE_ENV=production",
+  "WORKDIR /app",
+  "COPY . /app",
   "EXPOSE 3000",
   'CMD ["npm", "start"]',
   ""
@@ -170,6 +173,51 @@ describe("docker-yaml API", () => {
 
     expect(exposeIndex).toBeLessThan(argIndex);
     expect(envIndex).toBeGreaterThan(runIndex);
+  });
+
+  it("mantem USER apos COPY com order.user.after=copy mesmo com copy.afterRun", async () => {
+    const content = await readFile(orderUserAfterCopyFixturePath, "utf8");
+    const dockerfile = generate(content);
+
+    const copyIndex = dockerfile.indexOf("COPY --chown=serviceUser:serviceGroup . /app");
+    const userIndex = dockerfile.indexOf("USER serviceUser:serviceGroup");
+    const entrypointIndex = dockerfile.indexOf('ENTRYPOINT ["dotnet", "App.dll"]');
+
+    expect(copyIndex).toBeGreaterThan(-1);
+    expect(userIndex).toBeGreaterThan(copyIndex);
+    expect(entrypointIndex).toBeGreaterThan(-1);
+    expect(userIndex).toBeLessThan(entrypointIndex);
+  });
+
+  it("valida spec com services e gera todos os services", async () => {
+    const content = await readFile(servicesFixturePath, "utf8");
+    const parsed = parse(content);
+    const result = validate(parsed);
+
+    expect(result.valid).toBe(true);
+
+    const dockerfile = generate(content);
+    expect(dockerfile).toContain("# service: dotnet8");
+    expect(dockerfile).toContain("# service: node20");
+    expect(dockerfile).toContain("FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine");
+    expect(dockerfile).toContain("FROM node:20-alpine");
+  });
+
+  it("gera apenas o service selecionado com option name", async () => {
+    const content = await readFile(servicesFixturePath, "utf8");
+    const dockerfile = generate(content, { name: "node20" });
+
+    expect(dockerfile).toContain("FROM node:20-alpine");
+    expect(dockerfile).not.toContain("FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine");
+  });
+
+  it("invalida services com nomes duplicados", async () => {
+    const content = await readFile(servicesDuplicateNameInvalidFixturePath, "utf8");
+    const parsed = parse(content);
+    const result = validate(parsed);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.path === "services[1].name")).toBe(true);
   });
 
   it("suporta SHELL instruction", async () => {

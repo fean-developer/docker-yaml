@@ -24,8 +24,8 @@ export function parseAndValidate(content: string): { spec: DockerYamlV1; validat
   return { spec: assertDockerYamlV1(parsed), validation };
 }
 
-export function generate(content: string): string {
+export function generate(content: string, options: { name?: string } = {}): string {
   const parsed = parseDockerYaml(content);
   const spec = assertDockerYamlV1(parsed);
-  return generateDockerfile(spec);
+  return generateDockerfile(spec, options);
 }

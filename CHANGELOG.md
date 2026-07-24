@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.0 - 2026-07-24
+- Suporte a multi-Dockerfile via `services` com selecao por nome (`--name <service>`).
+- CLI agora aceita `--name` em `validate` e `generate`.
+- `validate` tambem aceita `--out` para validar e gravar o Dockerfile no mesmo fluxo.
+- Suporte ao alias de versao `version: v1` (alem de `version: 1`).
+- Ordenacao padrao atualizada para seguir um fluxo recomendado quando `order` nao e informado.
+- Correcao da ordenacao com `order.<chave>.after: copy` quando `copy.afterRun: true` (ex.: `USER` nao vai mais para depois de `ENTRYPOINT` indevidamente).
+- Novos testes de API e CLI cobrindo `services`, `--name` e a regressao de ordenacao do `user`.
+
 ## 0.8.0 - 2026-07-24
 - Suporte a instrucao `SHELL` com array de comandos.
 - Suporte a instrucao `ADD` com `src`, `dest` e opcional `chown`.

@@ -54,10 +54,23 @@ export type DockerStage = {
   order?: Partial<Record<Exclude<OrderAnchor, "from">, OrderDirective>>;
 };
 
-export type DockerYamlV1 = DockerStage & {
-  version: 1;
+export type DockerYamlVersion = 1 | "v1";
+
+export type DockerNamedService = DockerStage & {
+  name: string;
+};
+
+export type DockerYamlV1Single = DockerStage & {
+  version: DockerYamlVersion;
   stages?: DockerStage[];
 };
+
+export type DockerYamlV1Services = {
+  version: DockerYamlVersion;
+  services: DockerNamedService[];
+};
+
+export type DockerYamlV1 = DockerYamlV1Single | DockerYamlV1Services;
 
 export type ValidationError = {
   path: string;

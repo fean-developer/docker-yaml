@@ -1,0 +1,19 @@
+version: 1
+from: mcr.microsoft.com/dotnet/aspnet:8.0-alpine
+copy:
+  - src: .
+    dest: /app
+  - src: .
+    dest: /app
+    chown: serviceUser:serviceGroup
+    afterRun: true
+run:
+  - apk add --no-cache tzdata
+  - addgroup -S serviceGroup && adduser -S serviceUser -G serviceGroup
+entrypoint:
+  - dotnet
+  - App.dll
+user: serviceUser:serviceGroup
+order:
+  user:
+    after: copy

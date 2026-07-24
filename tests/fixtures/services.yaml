@@ -1,0 +1,37 @@
+version: v1
+services:
+  - name: dotnet8
+    from: mcr.microsoft.com/dotnet/aspnet:8.0-alpine
+    env:
+      ASPNETCORE_URLS: http://+:8080
+    workdir: /app
+    copy:
+      - src: .
+        dest: /app
+    run:
+      - apk add --no-cache tzdata
+    expose:
+      - 8080
+    entrypoint:
+      - dotnet
+      - App.dll
+  - name: node20
+    from: node:20-alpine
+    env:
+      NODE_ENV: production
+    workdir: /app
+    copy:
+      - src: package.json
+        dest: /app
+      - src: package-lock.json
+        dest: /app
+      - src: .
+        dest: /app
+    run:
+      - npm ci
+      - npm run build
+    expose:
+      - 3000
+    cmd:
+      - npm
+      - start
