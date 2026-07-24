@@ -82,15 +82,24 @@ function generateFromServices(spec: DockerYamlV1Services, options: GenerateDocke
       throw new Error(`Servico '${options.name}' nao encontrado`);
     }
 
-    return `${stageToLines(selected).join("\n")}\n`;
+    return serviceToDockerfile(selected);
   }
 
   if (spec.services.length === 1) {
-    return `${stageToLines(spec.services[0]).join("\n")}\n`;
+    return serviceToDockerfile(spec.services[0]);
   }
 
-  const blocks = spec.services.map((service) => `# service: ${service.name}\n${stageToLines(service).join("\n")}`);
+  const blocks = spec.services.map((service) => `# service: ${service.name}\n${serviceToDockerfile(service).trimEnd()}`);
   return `${blocks.join("\n\n")}\n`;
+}
+
+function serviceToDockerfile(service: DockerNamedService): string {
+  if ("stages" in service) {
+    const stageBlocks = service.stages.map((stage) => stageToLines(stage).join("\n"));
+    return `${stageBlocks.join("\n\n")}\n`;
+  }
+
+  return `${stageToLines(service).join("\n")}\n`;
 }
 
 function isServicesSpec(spec: DockerYamlV1): spec is DockerYamlV1Services {

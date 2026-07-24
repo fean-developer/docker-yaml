@@ -19,6 +19,7 @@ const runMultilineFixturePath = new URL("./fixtures/run-multiline.yaml", import.
 const orderPlacementFixturePath = new URL("./fixtures/order-placement.yaml", import.meta.url);
 const servicesFixturePath = new URL("./fixtures/services.yaml", import.meta.url);
 const orderUserAfterMultipleFixturePath = new URL("./fixtures/order-user-after-multiple.yaml", import.meta.url);
+const servicesMultiStageFixturePath = new URL("./fixtures/services-multi-stage.yaml", import.meta.url);
 
 describe("docker-yaml CLI", () => {
   it("validate retorna sucesso para fixture valida", async () => {
@@ -183,5 +184,22 @@ describe("docker-yaml CLI", () => {
     expect(userIndex).toBeGreaterThan(copyIndex);
     expect(userIndex).toBeGreaterThan(workdirIndex);
     expect(userIndex).toBeLessThan(entrypointIndex);
+  });
+
+  it("generate com --name suporta service multi-stage", async () => {
+    const { stdout } = await execFileAsync("node", [
+      "--import",
+      "tsx",
+      cliPath.pathname,
+      "generate",
+      servicesMultiStageFixturePath.pathname,
+      "--name",
+      "dotnet-api"
+    ]);
+
+    const fromCount = (stdout.match(/^FROM /gm) ?? []).length;
+    expect(fromCount).toBe(2);
+    expect(stdout).toContain("FROM mcr.microsoft.com/dotnet/sdk:8.0");
+    expect(stdout).toContain("FROM mcr.microsoft.com/dotnet/aspnet:8.0");
   });
 });

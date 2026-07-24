@@ -1,0 +1,8 @@
+version: v1
+services:
+  - name: broken-service
+    from: node:20-alpine
+    stages:
+      - from: node:20-alpine
+        run:
+          - npm ci

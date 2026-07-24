@@ -95,6 +95,22 @@ services:
     cmd: ["npm", "start"]
 ```
 
+### Modo multi-service com multi-stage
+
+```yaml
+version: v1
+services:
+  - name: dotnet-api
+    stages:
+      - from: mcr.microsoft.com/dotnet/sdk:8.0
+        run: ["dotnet publish -c Release -o /out"]
+      - from: mcr.microsoft.com/dotnet/aspnet:8.0
+        copy:
+          - src: --from=0 /out
+            dest: /app
+        entrypoint: ["dotnet", "App.dll"]
+```
+
 ---
 
 ## 🔧 Campos Suportados
@@ -102,7 +118,7 @@ services:
 | Campo | Tipo | Exemplo |
 |-------|------|---------|
 | `version` | number | `1` |
-| `services` | array | `[{name: "api", from: "node:20"}]` |
+| `services` | array | `[{name: "api", from: "node:20"}]` ou `[{name: "api", stages: [...]}]` |
 | `from` | string | `node:20-alpine` |
 | `arg` | object | `{ NODE_ENV: production }` |
 | `shell` | array | `["/bin/sh", "-c"]` |

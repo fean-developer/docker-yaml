@@ -2,7 +2,7 @@
 
 Biblioteca e CLI em TypeScript para validar um YAML simples e gerar `Dockerfile`.
 
-**Status**: ✅ v0.9.1 - Seguro para produção | [Análise de Segurança](SECURITY.md)
+**Status**: ✅ v0.10.0 - Seguro para produção | [Análise de Segurança](SECURITY.md)
 
 ## Instalação
 
@@ -163,6 +163,42 @@ services:
       - start
 ```
 
+## Exemplo multi-service com multi-stage
+
+```yaml
+version: v1
+services:
+  - name: dotnet-api
+    stages:
+      - from: mcr.microsoft.com/dotnet/sdk:8.0
+        workdir: /src
+        copy:
+          - src: .
+            dest: /src
+        run:
+          - dotnet restore
+          - dotnet publish -c Release -o /out
+      - from: mcr.microsoft.com/dotnet/aspnet:8.0
+        workdir: /app
+        copy:
+          - src: --from=0 /out
+            dest: /app
+        entrypoint:
+          - dotnet
+          - App.dll
+  - name: node-web
+    from: node:20-alpine
+    workdir: /app
+    copy:
+      - src: .
+        dest: /app
+    run:
+      - npm ci
+    cmd:
+      - npm
+      - start
+```
+
 Comandos:
 
 ```bash
@@ -298,6 +334,7 @@ Campos suportados:
 - `version` (`1` ou `v1`)
 - `from`
 - `services` (modo multi-Dockerfile por nome)
+  - cada `service` pode ser single-stage (`from`) ou multi-stage (`stages`)
 - `shell` (array de comandos para shell)
 - `arg`
 - `workdir`
@@ -380,7 +417,7 @@ RUN --mount=type=secret,id=npm_token \
 
 ---
 
-**Última atualização**: 2026-07-24 | **Versão**: v0.9.1
+**Última atualização**: 2026-07-24 | **Versão**: v0.10.0
 
 - [Análise de Segurança](SECURITY.md) - Análise de segurança detalhada
 - [Changelog](CHANGELOG.md) - Histórico de versões

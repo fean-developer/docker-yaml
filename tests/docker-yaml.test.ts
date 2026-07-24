@@ -23,6 +23,8 @@ const healthcheckFixturePath = new URL("./fixtures/healthcheck.yaml", import.met
 const stopsignalFixturePath = new URL("./fixtures/stopsignal.yaml", import.meta.url);
 const servicesFixturePath = new URL("./fixtures/services.yaml", import.meta.url);
 const servicesDuplicateNameInvalidFixturePath = new URL("./fixtures/services-duplicate-name-invalid.yaml", import.meta.url);
+const servicesMultiStageFixturePath = new URL("./fixtures/services-multi-stage.yaml", import.meta.url);
+const servicesMultiStageInvalidFixturePath = new URL("./fixtures/services-multi-stage-invalid.yaml", import.meta.url);
 
 const expectedDockerfile = [
   "FROM node:22-alpine",
@@ -239,6 +241,30 @@ describe("docker-yaml API", () => {
 
     expect(result.valid).toBe(false);
     expect(result.errors.some((error) => error.path === "services[1].name")).toBe(true);
+  });
+
+  it("suporta service multi-stage dentro de services", async () => {
+    const content = await readFile(servicesMultiStageFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(true);
+
+    const dockerfile = generate(content, { name: "dotnet-api" });
+    const fromCount = (dockerfile.match(/^FROM /gm) ?? []).length;
+
+    expect(fromCount).toBe(2);
+    expect(dockerfile).toContain("FROM mcr.microsoft.com/dotnet/sdk:8.0");
+    expect(dockerfile).toContain("FROM mcr.microsoft.com/dotnet/aspnet:8.0");
+  });
+
+  it("invalida service que mistura from e stages", async () => {
+    const content = await readFile(servicesMultiStageInvalidFixturePath, "utf8");
+    const parsed = parse(content);
+    const validation = validate(parsed);
+
+    expect(validation.valid).toBe(false);
+    expect(validation.errors.some((error) => error.path === "services[0].from")).toBe(true);
   });
 
   it("suporta SHELL instruction", async () => {

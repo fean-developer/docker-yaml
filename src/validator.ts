@@ -4,7 +4,7 @@ const ORDER_ANCHORS = new Set(["from", "shell", "arg", "workdir", "copy", "add",
 const ORDER_KEYS = new Set(["shell", "arg", "workdir", "copy", "add", "run", "env", "expose", "label", "volume", "user", "healthcheck", "entrypoint", "cmd", "stopsignal"]);
 const ALLOWED_FIELDS = new Set(["version", "from", "shell", "arg", "workdir", "copy", "add", "run", "env", "expose", "label", "volume", "user", "healthcheck", "entrypoint", "cmd", "stopsignal", "order", "stages", "services"]);
 const STAGE_ALLOWED_FIELDS = new Set(["from", "shell", "arg", "workdir", "copy", "add", "run", "env", "expose", "label", "volume", "user", "healthcheck", "entrypoint", "cmd", "stopsignal", "order"]);
-const SERVICE_ALLOWED_FIELDS = new Set(["name", ...STAGE_ALLOWED_FIELDS]);
+const SERVICE_ALLOWED_FIELDS = new Set(["name", ...STAGE_ALLOWED_FIELDS, "stages"]);
 const ROOT_STAGE_FIELDS = ["from", "shell", "arg", "workdir", "copy", "add", "run", "env", "expose", "label", "volume", "user", "healthcheck", "entrypoint", "cmd", "stopsignal", "order"] as const;
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -93,11 +93,23 @@ export function validateDockerYaml(input: unknown): ValidationResult {
           seenNames.add(service.name);
         }
 
-        if (typeof service.from !== "string" || service.from.trim().length === 0) {
-          pushError(errors, `services[${index}].from`, "deve ser uma string nao vazia");
-        }
+        const hasServiceStages = service.stages !== undefined;
 
-        validateStageFields(service as DockerNamedService, `services[${index}]`, errors);
+        if (hasServiceStages) {
+          for (const field of ROOT_STAGE_FIELDS) {
+            if (service[field] !== undefined) {
+              pushError(errors, `services[${index}].${field}`, "nao pode ser usado junto com stages");
+            }
+          }
+
+          validateStagesCollection(service.stages, `services[${index}].stages`, errors);
+        } else {
+          if (typeof service.from !== "string" || service.from.trim().length === 0) {
+            pushError(errors, `services[${index}].from`, "deve ser uma string nao vazia");
+          }
+
+          validateStageFields(service as DockerStage, `services[${index}]`, errors);
+        }
       });
     }
   } else if (!hasStages) {
@@ -109,38 +121,43 @@ export function validateDockerYaml(input: unknown): ValidationResult {
       }
     }
 
-    if (!Array.isArray(input.stages)) {
-      pushError(errors, "stages", "deve ser uma lista");
-    } else {
-      if (input.stages.length === 0) {
-        pushError(errors, "stages", "deve conter ao menos um stage");
-      }
-
-      input.stages.forEach((stage, index) => {
-        if (!isObject(stage)) {
-          pushError(errors, `stages[${index}]`, "deve ser um objeto");
-          return;
-        }
-
-        for (const key of Object.keys(stage)) {
-          if (!STAGE_ALLOWED_FIELDS.has(key)) {
-            pushError(errors, `stages[${index}].${key}`, "campo nao suportado no stage");
-          }
-        }
-
-        if (typeof stage.from !== "string" || stage.from.trim().length === 0) {
-          pushError(errors, `stages[${index}].from`, "deve ser uma string nao vazia");
-        }
-
-        validateStageFields(stage as DockerStage, `stages[${index}]`, errors);
-      });
-    }
+    validateStagesCollection(input.stages, "stages", errors);
   }
 
   return {
     valid: errors.length === 0,
     errors
   };
+}
+
+function validateStagesCollection(stages: unknown, basePath: string, errors: ValidationError[]): void {
+  if (!Array.isArray(stages)) {
+    pushError(errors, basePath, "deve ser uma lista");
+    return;
+  }
+
+  if (stages.length === 0) {
+    pushError(errors, basePath, "deve conter ao menos um stage");
+  }
+
+  stages.forEach((stage, index) => {
+    if (!isObject(stage)) {
+      pushError(errors, `${basePath}[${index}]`, "deve ser um objeto");
+      return;
+    }
+
+    for (const key of Object.keys(stage)) {
+      if (!STAGE_ALLOWED_FIELDS.has(key)) {
+        pushError(errors, `${basePath}[${index}].${key}`, "campo nao suportado no stage");
+      }
+    }
+
+    if (typeof stage.from !== "string" || stage.from.trim().length === 0) {
+      pushError(errors, `${basePath}[${index}].from`, "deve ser uma string nao vazia");
+    }
+
+    validateStageFields(stage as DockerStage, `${basePath}[${index}]`, errors);
+  });
 }
 
 function validateStageFields(stage: Partial<DockerStage>, prefix: string, errors: ValidationError[]): void {

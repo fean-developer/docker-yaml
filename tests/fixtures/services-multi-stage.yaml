@@ -1,0 +1,36 @@
+version: v1
+services:
+  - name: dotnet-api
+    stages:
+      - from: mcr.microsoft.com/dotnet/sdk:8.0
+        workdir: /src
+        copy:
+          - src: .
+            dest: /src
+        run:
+          - dotnet restore
+          - dotnet publish -c Release -o /out
+      - from: mcr.microsoft.com/dotnet/aspnet:8.0
+        workdir: /app
+        copy:
+          - src: --from=0 /out
+            dest: /app
+        expose:
+          - 8080
+        entrypoint:
+          - dotnet
+          - App.dll
+  - name: node-web
+    from: node:20-alpine
+    workdir: /app
+    copy:
+      - src: package.json
+        dest: /app
+      - src: .
+        dest: /app
+    run:
+      - npm ci
+      - npm run build
+    cmd:
+      - npm
+      - start

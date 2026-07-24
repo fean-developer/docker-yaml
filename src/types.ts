@@ -56,9 +56,16 @@ export type DockerStage = {
 
 export type DockerYamlVersion = 1 | "v1";
 
-export type DockerNamedService = DockerStage & {
+export type DockerNamedServiceSingle = DockerStage & {
   name: string;
 };
+
+export type DockerNamedServiceMultiStage = {
+  name: string;
+  stages: DockerStage[];
+};
+
+export type DockerNamedService = DockerNamedServiceSingle | DockerNamedServiceMultiStage;
 
 export type DockerYamlV1Single = DockerStage & {
   version: DockerYamlVersion;

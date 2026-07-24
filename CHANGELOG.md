@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0 - 2026-07-24
+- Suporte a `multi-stage` dentro de `services` usando `services[].stages`.
+- Cada `service` agora pode ser:
+	- single-stage (`from`, `run`, `copy`, etc.), ou
+	- multi-stage (`stages`).
+- Validacao para impedir mistura de `from` e `stages` no mesmo `service`.
+- Novos testes de API e CLI cobrindo `services` multi-stage e caso invalido.
+
 ## 0.9.1 - 2026-07-24
 - Suporte a `order.<chave>.before` e `order.<chave>.after` com lista de anchors.
 - Exemplo: `order.user.after: [copy, workdir]` agora garante `USER` depois de `COPY` e `WORKDIR`.
