@@ -28,6 +28,7 @@ const servicesMultiStageInvalidFixturePath = new URL("./fixtures/services-multi-
 const templateBasicFixturePath = new URL("./fixtures/template-basic.yaml", import.meta.url);
 const templateRequiredMissingFixturePath = new URL("./fixtures/template-required-missing.yaml", import.meta.url);
 const templateServicesMultiStageFixturePath = new URL("./fixtures/template-services-multi-stage.yaml", import.meta.url);
+const commentPreservationFixturePath = new URL("./fixtures/comment-preservation.yaml", import.meta.url);
 
 const expectedDockerfile = [
   "FROM node:22-alpine",
@@ -388,5 +389,45 @@ describe("docker-yaml API", () => {
     expect(dockerfile).toContain("STOPSIGNAL SIGTERM");
     expect(dockerfile).toContain("USER appuser");
     expect(dockerfile).toContain('ENTRYPOINT ["dumb-init", "--"]');
+  });
+
+  describe("preservacao de comentarios e linhas em branco", () => {
+    it("preserva comentarios YAML no Dockerfile gerado na mesma posicao", async () => {
+      const content = await readFile(commentPreservationFixturePath, "utf8");
+      const dockerfile = generate(content);
+
+      expect(dockerfile).toContain("# imagem base do dockerfile");
+      expect(dockerfile).toContain("# variaveis de ambiente");
+      expect(dockerfile).toContain("# executando comandos de setup");
+      expect(dockerfile).toContain("# ponto de entrada");
+    });
+
+    it("comentario aparece imediatamente antes da instrucao correspondente", async () => {
+      const content = await readFile(commentPreservationFixturePath, "utf8");
+      const dockerfile = generate(content);
+      const lines = dockerfile.split("\n");
+
+      const fromIndex = lines.indexOf("FROM nginx:alpine");
+      expect(lines[fromIndex - 1]).toBe("# imagem base do dockerfile");
+
+      const runIndex = lines.findIndex((line) => line.startsWith("RUN apk"));
+      expect(lines[runIndex - 1]).toBe("# executando comandos de setup");
+    });
+
+    it("linha em branco antes do comentario e preservada", async () => {
+      const content = await readFile(commentPreservationFixturePath, "utf8");
+      const dockerfile = generate(content);
+      const lines = dockerfile.split("\n");
+
+      const envIndex = lines.findIndex((line) => line.startsWith("ENV APP_ENV"));
+      expect(lines[envIndex - 2]).toBe("");
+      expect(lines[envIndex - 1]).toBe("# variaveis de ambiente");
+    });
+
+    it("YAML sem comentarios continua gerando Dockerfile identico ao comportamento anterior", async () => {
+      const content = await readFile(validFixturePath, "utf8");
+      const dockerfile = generate(content);
+      expect(dockerfile).toBe(expectedDockerfile);
+    });
   });
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { access, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { parseDockerYaml } from "./parser.js";
+import { extractCommentMap, parseDockerYaml } from "./parser.js";
 import { mergeVariables, parseEnvLikeContent, resolveTemplates, type TemplateVariables } from "./template.js";
 import { assertDockerYamlV1, validateDockerYaml } from "./validator.js";
 import { generateDockerfile } from "./generator.js";
@@ -190,9 +190,11 @@ async function run(): Promise<number> {
     return 1;
   }
 
+  const commentMap = extractCommentMap(content);
+
   if (command === "validate") {
     if (outPath) {
-      const dockerfile = generateDockerfile(spec, { name: serviceName ?? undefined });
+      const dockerfile = generateDockerfile(spec, { name: serviceName ?? undefined, commentMap });
       try {
         await writeFile(outPath, dockerfile, "utf8");
       } catch (error) {
@@ -206,7 +208,7 @@ async function run(): Promise<number> {
     return 0;
   }
 
-  const dockerfile = generateDockerfile(spec, { name: serviceName ?? undefined });
+  const dockerfile = generateDockerfile(spec, { name: serviceName ?? undefined, commentMap });
 
   if (outPath) {
     try {

@@ -1,0 +1,19 @@
+version: 1
+# imagem base do dockerfile
+from: nginx:alpine
+
+# variaveis de ambiente
+env:
+  APP_ENV: production
+  PORT: "8080"
+
+# executando comandos de setup
+run:
+  - apk add --no-cache curl
+  - echo "setup done"
+
+# ponto de entrada
+entrypoint:
+  - nginx
+  - -g
+  - daemon off;

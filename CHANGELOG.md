@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0 - 2026-08-07
+- Comentarios YAML (`# texto`) sao preservados e emitidos no Dockerfile gerado na mesma posicao relativa.
+- Linhas em branco entre secoes do YAML sao preservadas no Dockerfile.
+- Comentarios movem junto com a secao quando `order` e usado para reordenar instrucoes.
+- Funciona em single-stage e multi-stage (comentarios no nivel raiz do documento).
+
 ## 0.11.0 - 2026-07-24
 - Suporte completo a templates em strings YAML (`${VAR}`).
 - Suporte a default (`${VAR:-valor}`), required (`${VAR?mensagem}`) e escape (`$${VAR}`).

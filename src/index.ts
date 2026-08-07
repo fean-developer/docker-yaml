@@ -1,4 +1,4 @@
-import { parseDockerYaml } from "./parser.js";
+import { extractCommentMap, parseDockerYaml } from "./parser.js";
 import { generateDockerfile } from "./generator.js";
 import { mergeVariables, resolveTemplates, type TemplateVariables } from "./template.js";
 import { assertDockerYamlV1, validateDockerYaml } from "./validator.js";
@@ -34,6 +34,7 @@ export type GenerateOptions = {
 
 export function generate(content: string, options: GenerateOptions = {}): string {
   const parsed = parseDockerYaml(content);
+  const commentMap = extractCommentMap(content);
 
   const mergedVars = mergeVariables([
     options.useProcessEnv === false ? {} : (process.env as TemplateVariables),
@@ -51,5 +52,5 @@ export function generate(content: string, options: GenerateOptions = {}): string
   }
 
   const spec = assertDockerYamlV1(resolved.value);
-  return generateDockerfile(spec, { name: options.name });
+  return generateDockerfile(spec, { name: options.name, commentMap });
 }

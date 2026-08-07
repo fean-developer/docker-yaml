@@ -2,6 +2,7 @@ import type { DockerNamedService, DockerStage, DockerYamlV1, DockerYamlV1Service
 
 export type GenerateDockerfileOptions = {
   name?: string;
+  commentMap?: Map<string, string>;
 };
 
 function jsonArray(values: string[]): string {
@@ -18,7 +19,12 @@ function inferStageWorkdir(stage: DockerStage): string | null {
   return firstAbsoluteCopyDest ?? null;
 }
 
-function stageToLines(stage: DockerStage): string[] {
+const COMMENT_ELIGIBLE_ANCHORS = new Set<string>([
+  "from", "shell", "arg", "workdir", "copy", "add", "run", "env",
+  "expose", "label", "volume", "user", "healthcheck", "entrypoint", "cmd", "stopsignal"
+]);
+
+function stageToLines(stage: DockerStage, commentMap: Map<string, string> = new Map()): string[] {
   const workdir = inferStageWorkdir(stage);
   const copyBeforeRun = (stage.copy ?? []).filter((item) => !item.afterRun);
   const copyAfterRun = (stage.copy ?? []).filter((item) => item.afterRun);
@@ -49,6 +55,15 @@ function stageToLines(stage: DockerStage): string[] {
     stopsignal: stage.stopsignal ? [`STOPSIGNAL ${stage.stopsignal}`] : []
   };
 
+  // Prepend preserved YAML comments/blank lines to their associated sections.
+  for (const [key, comment] of commentMap) {
+    if (!COMMENT_ELIGIBLE_ANCHORS.has(key)) continue;
+    const anchor = key as OrderAnchor;
+    if (sections[anchor].length > 0) {
+      sections[anchor] = [...comment.split("\n"), ...sections[anchor]];
+    }
+  }
+
   const order = mergeOrderDirectives(stage.order, expose.before, expose.after);
   const orderedKeys = resolveOrder(sections, order, {
     copyHasAfterRunItems: copyAfterRun.length > 0
@@ -63,16 +78,18 @@ function stageToLines(stage: DockerStage): string[] {
 }
 
 export function generateDockerfile(spec: DockerYamlV1, options: GenerateDockerfileOptions = {}): string {
+  const { commentMap, ...restOptions } = options;
+
   if (isServicesSpec(spec)) {
-    return generateFromServices(spec, options);
+    return generateFromServices(spec, restOptions);
   }
 
   if (spec.stages && spec.stages.length > 0) {
-    const stageBlocks = spec.stages.map((stage) => stageToLines(stage).join("\n"));
+    const stageBlocks = spec.stages.map((stage) => stageToLines(stage, commentMap).join("\n"));
     return `${stageBlocks.join("\n\n")}\n`;
   }
 
-  return `${stageToLines(spec).join("\n")}\n`;
+  return `${stageToLines(spec, commentMap).join("\n")}\n`;
 }
 
 function generateFromServices(spec: DockerYamlV1Services, options: GenerateDockerfileOptions): string {
