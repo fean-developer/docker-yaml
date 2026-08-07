@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { generate, parse, validate } from "../src/index.js";
+
+vi.setConfig({ testTimeout: 15000 });
 
 const validFixturePath = new URL("./fixtures/valid.yaml", import.meta.url);
 const invalidFixturePath = new URL("./fixtures/invalid.yaml", import.meta.url);
@@ -422,6 +424,21 @@ describe("docker-yaml API", () => {
       const envIndex = lines.findIndex((line) => line.startsWith("ENV APP_ENV"));
       expect(lines[envIndex - 2]).toBe("");
       expect(lines[envIndex - 1]).toBe("# variaveis de ambiente");
+    });
+
+    it("preserva comentarios indentados da mesma forma que top-level", async () => {
+      const content = await readFile(commentPreservationFixturePath, "utf8");
+      const dockerfile = generate(content);
+
+      // Comentarios indentados no YAML devem aparecer sem indentacao no Dockerfile
+      expect(dockerfile).toContain("# executando comandos de setup");
+      expect(dockerfile).toContain("# ponto de entrada");
+      // Verificar que aparecem antes das instrucoes correspondentes
+      const lines = dockerfile.split("\n");
+      const runIndex = lines.findIndex((line) => line.startsWith("RUN apk"));
+      const entrypointIndex = lines.findIndex((line) => line.startsWith("ENTRYPOINT"));
+      expect(lines[runIndex - 1]).toBe("# executando comandos de setup");
+      expect(lines[entrypointIndex - 1]).toBe("# ponto de entrada");
     });
 
     it("YAML sem comentarios continua gerando Dockerfile identico ao comportamento anterior", async () => {

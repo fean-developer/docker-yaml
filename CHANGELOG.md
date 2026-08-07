@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.2 - 2026-08-07
+- **Aprimoramento de preservacao de comentarios em arrays**: Comentarios que precedem itens de array (ex.: `run`, `copy`) agora sao associados individualmente a cada item usando notacao de indice (`run[0]`, `run[1]`, etc.).
+- Comentarios antes de cada `- |` ou `- ` em arrays agora aparecem imediatamente antes do item compilado correspondente, nao agrupados no final.
+- Linhas em branco finais dentro de buffers de comentarios sao removidas para evitar espaçamento excessivo.
+- Exemplo: comentario `# Install docker buildx` que precede um item do array `run` agora aparece antes daquele comando RUN especifico, nao no fim de toda secao `RUN`.
+- Timeout de testes aumentado para 15s (de 5s) para acomodar overhead de `tsx` em testes da CLI.
+
+## 0.12.1 - 2026-08-07
+- Melhoria na preservacao de comentarios: agora captura comentarios indentados que aparecem entre chaves YAML.
+- Comentarios indentados (ex.: `  # comentario`) sao trimados e associados a chave seguinte.
+- Exemplo: comentario indentado antes de `run:` agora aparece antes do bloco `RUN` no Dockerfile.
+
 ## 0.12.0 - 2026-08-07
 - Comentarios YAML (`# texto`) sao preservados e emitidos no Dockerfile gerado na mesma posicao relativa.
 - Linhas em branco entre secoes do YAML sao preservadas no Dockerfile.

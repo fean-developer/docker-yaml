@@ -29,7 +29,21 @@ function stageToLines(stage: DockerStage, commentMap: Map<string, string> = new 
   const copyBeforeRun = (stage.copy ?? []).filter((item) => !item.afterRun);
   const copyAfterRun = (stage.copy ?? []).filter((item) => item.afterRun);
   const expose = normalizeExpose(stage.expose);
-  const runLines = normalizeRun(stage.run);
+  
+  // Build run lines with array item comments if available
+  let runLines: string[] = [];
+  if (Array.isArray(stage.run)) {
+    for (let i = 0; i < stage.run.length; i++) {
+      const itemComment = commentMap.get(`run[${i}]`);
+      if (itemComment) {
+        runLines.push(...itemComment.split("\n"));
+      }
+      runLines.push(...normalizeRun(stage.run[i]));
+    }
+  } else {
+    runLines = normalizeRun(stage.run);
+  }
+
   const volume = normalizeVolume(stage.volume);
   const healthcheck = stage.healthcheck ? `HEALTHCHECK ${formatHealthcheck(stage.healthcheck)}` : undefined;
 
@@ -55,8 +69,10 @@ function stageToLines(stage: DockerStage, commentMap: Map<string, string> = new 
     stopsignal: stage.stopsignal ? [`STOPSIGNAL ${stage.stopsignal}`] : []
   };
 
-  // Prepend preserved YAML comments/blank lines to their associated sections.
+  // Prepend preserved YAML comments/blank lines to non-array sections.
   for (const [key, comment] of commentMap) {
+    // Skip array-indexed keys (run[0], run[1], etc.) — they're handled above
+    if (key.includes("[")) continue;
     if (!COMMENT_ELIGIBLE_ANCHORS.has(key)) continue;
     const anchor = key as OrderAnchor;
     if (sections[anchor].length > 0) {
