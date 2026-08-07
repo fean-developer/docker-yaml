@@ -3,7 +3,10 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Each test spawns a tsx process; cold-start can exceed the default 5 s.
+vi.setConfig({ testTimeout: 15000 });
 
 const execFileAsync = promisify(execFile);
 
