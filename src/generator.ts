@@ -311,10 +311,14 @@ function normalizeRun(run: DockerStage["run"]): string[] {
     return [`RUN ${chunks[0]}`];
   }
 
-  const multiline = [`RUN ${chunks[0]} \\`];
+  const continuation = " \\";
+  const firstChunk = chunks[0].endsWith("\\") ? chunks[0] : `${chunks[0]}${continuation}`;
+  const multiline = [`RUN ${firstChunk}`];
   for (let index = 1; index < chunks.length; index += 1) {
     const isLast = index === chunks.length - 1;
-    multiline.push(`${isLast ? "    " : "    "}${chunks[index]}${isLast ? "" : " \\"}`);
+    const chunk = chunks[index];
+    const line = isLast || chunk.endsWith("\\") ? chunk : `${chunk}${continuation}`;
+    multiline.push(`    ${line}`);
   }
 
   return multiline;

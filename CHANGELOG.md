@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.3 - 2026-08-07
+- Corrige a geracao de `RUN` multiline quando o YAML ja possui barras de continuacao (`\`) no final das linhas.
+- O gerador agora evita emitir `\ \`, mantendo apenas uma barra de continuacao e produzindo Dockerfile valido.
+- Adicionada validacao de regressao usando o YAML complexo de preservacao de comentarios.
+
 ## 0.12.2 - 2026-08-07
 - **Aprimoramento de preservacao de comentarios em arrays**: Comentarios que precedem itens de array (ex.: `run`, `copy`) agora sao associados individualmente a cada item usando notacao de indice (`run[0]`, `run[1]`, etc.).
 - Comentarios antes de cada `- |` ou `- ` em arrays agora aparecem imediatamente antes do item compilado correspondente, nao agrupados no final.

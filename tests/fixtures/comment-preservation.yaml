@@ -1,28 +1,148 @@
 version: v1
+# Represents the runner environment for GitHub Actions for the CI/CD pipeline of the Panoptes project.
+# Any additional tools required by the GitHub Actions used in the workflow should be added here.
+# This ensures they are available when running the actions locally with act or in the GitHub-hosted runners.
 
-# imagem base do dockerfile
-from: nginx:alpine
-
-# variaveis de ambiente
+from: mcr.microsoft.com/dotnet/sdk:8.0-jammy
+arg:
+  RUNNER_VERSION: 2.336.0
+  RUNNER_SHA256: 3e5f0b1c7d8a4e2f9b6c1e5f8a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8g9h
 
 env:
-  APP_ENV: production
-  APP_DEBUG: "false"
-  APP_PORT: "8080"
+  SONAR_SCANNER_VERSION: 6.2.1.4610
+  KUBECTL_VERSION: v1.30.2
+  HELM_VERSION: v3.16.1
+  KIND_VERSION: v0.24.0
+  DEBIAN_FRONTEND: noninteractive
+  NODE_VERSION: 24.18.0
+  TERRAFORM_VERSION: 1.15.8
+  CRANE_VERSION: 0.21.0
+  ENV_JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+  GH_VERSION: 2.96.0
+  BUILDX_VERSION: 0.20.1
+  YQ_VERSION: v4.2.0
 
-# executando comandos de setup
-run:
-  - apk add --no-cache curl git
+workdir: /actions-runner
 
+# Copy files to the container
 copy:
-  - src: ./app
-    dest: /var/www/app
+  - src: ./runner-entrypoint.sh
+    dest: /actions-runner/runner-entrypoint.sh
 
-expose:
-  - 8080
+  # Install necessary packages for the build runner
+run: 
+  - |
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      git \
+      jq \
+      unzip \
+      wget \
+      openjdk-21-jdk-headless \
+      python3 \
+      python3-pip \
+      python3-venv \
+      python3-yaml \
+      python-is-python3 \
+      maven \
+      unzip \
+      zip \
+      xz-utils \
+      docker.io \
+      docker-compose \
+      jq \
+      && rm -rf /usr/share/doc /usr/share/man /var/lib/apt/lists/* /usr/share/locale /usr/share/zoneinfo /var/cache/debconf /var/lib/dpkg/info
 
-# ponto de entrada
+# Install docker buildx
+  - |
+      mkdir -p /usr/lib/docker/cli-plugins && \
+      curl -sSL "https://github.com/docker/buildx/releases/download/v${BUILDX_VERSION}/buildx-v${BUILDX_VERSION}.linux-amd64" -o /usr/lib/docker/cli-plugins/docker-buildx && \
+      chmod +x /usr/lib/docker/cli-plugins/docker-buildx
+
+# Install nodejs
+  - |
+    curl -fsSL  "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o node.tar.xz && \
+    tar -xJ node.tar.xz -C /usr/local --strip-components=1 && \
+    rm node.tar.xz
+
+# Install snyk and docker-yaml 
+  - |
+    --mount=type=cache,target=/root/.npm,sharing=locked && \
+    npm install -g snyk @fean-developer/docker-yaml
+
+# Install sonar scanner 
+  - |
+    curl -sSL "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux.zip" -o sonar-scanner.zip && \
+    unzip sonar-scanner.zip -d /opt && \
+    rm sonar-scanner.zip && \
+    ln -s "/opt/sonar-scanner-${SONAR_SCANNER_VERSION}-linux/bin/sonar-scanner" /usr/local/bin/sonar-scanner
+
+# Install terraform 
+  - |
+    curl -sSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o terraform.zip && \
+    unzip terraform.zip -d /usr/local/bin && \
+    rm terraform.zip
+
+# install gh and gh extensions
+  - |
+    curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.deb" -o gh.deb && \
+    dpkg -i gh.deb && \
+    rm gh.deb
+
+# Install yq
+  - |
+    curl -sSL "https://github.com/mykefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -o /usr/local/bin/yq && \
+    chmod +x /usr/local/bin/yq
+
+# install kubernetes tooling (KUBECTL, HELM, KIND)
+  - |
+    curl -sSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl && \
+    chmod +x /usr/local/bin/kubectl && \
+    curl -sSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" -o helm.tar.gz && \
+    tar -xzf helm.tar.gz -C /usr/local/bin --strip-components=1 linux-amd64/helm && \
+    rm helm.tar.gz && \
+    curl -sSL "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64" -o /usr/local/bin/kind && \
+    chmod +x /usr/local/bin/kind
+
+# Install AWS Cli v2 interacting with AWS services (ECR, S3, EKS, EC2, etc.)
+  - |
+    curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip aws
+
+# Install crane for pushing OCI tarballs to registries without docker daemon
+  - |
+    curl -sSL "https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/crane_${CRANE_VERSION}_linux_amd64.tar.gz" -o crane.tar.gz && \
+    tar -xzf crane.tar.gz -C /usr/local/bin --strip-components=1 crane && \
+    rm crane.tar.gz
+
+# create non root runner user and add todocker group for docker socket access
+  - |
+    adduser --disabled-password --gecos "" runner && \
+    usermod -aG docker runner && \
+    su -c  "gh extension install github/gh-ado2gh" runner && \
+    su -c  "gh extension install github/gh-gei" runner
+
+  - |
+    ARCHIVE="actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz" && \
+    curl -sSL "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/${ARCHIVE}" -o /temp/runner.tar.gz && \
+    echo "${RUNNER_SHA256}  /temp/runner.tar.gz" | sha256sum -c - && \
+    tar -xzf /temp/runner.tar.gz -C /actions-runner && \
+    rm /temp/runner.tar.gz
+
+# RUN ENTRYPOINT 
+  - ./bin/installdependencies.sh
+  
+  - |
+    chmod +x /actions-runner/runner-entrypoint.sh && \
+    chown -R runner:runner /actions-runner
+user: runner
 entrypoint:
-  - nginx
-  - "-g"
-  - "daemon off;"
+  - /actions-runner/runner-entrypoint.sh
+order:
+  env:
+    before: run

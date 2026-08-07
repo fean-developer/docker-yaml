@@ -398,10 +398,12 @@ describe("docker-yaml API", () => {
       const content = await readFile(commentPreservationFixturePath, "utf8");
       const dockerfile = generate(content);
 
-      expect(dockerfile).toContain("# imagem base do dockerfile");
-      expect(dockerfile).toContain("# variaveis de ambiente");
-      expect(dockerfile).toContain("# executando comandos de setup");
-      expect(dockerfile).toContain("# ponto de entrada");
+      expect(dockerfile).not.toContain("\\ \\");
+      expect(dockerfile).toContain("# Represents the runner environment for GitHub Actions for the CI/CD pipeline of the Panoptes project.");
+      expect(dockerfile).toContain("# Install necessary packages for the build runner");
+      expect(dockerfile).toContain("# Install docker buildx");
+      expect(dockerfile).toContain("# Install nodejs");
+      expect(dockerfile).toContain("# RUN ENTRYPOINT");
     });
 
     it("comentario aparece imediatamente antes da instrucao correspondente", async () => {
@@ -409,11 +411,16 @@ describe("docker-yaml API", () => {
       const dockerfile = generate(content);
       const lines = dockerfile.split("\n");
 
-      const fromIndex = lines.indexOf("FROM nginx:alpine");
-      expect(lines[fromIndex - 1]).toBe("# imagem base do dockerfile");
+      const fromIndex = lines.indexOf("FROM mcr.microsoft.com/dotnet/sdk:8.0-jammy");
+      expect(lines[fromIndex - 3]).toBe("# Represents the runner environment for GitHub Actions for the CI/CD pipeline of the Panoptes project.");
+      expect(lines[fromIndex - 2]).toBe("# Any additional tools required by the GitHub Actions used in the workflow should be added here.");
+      expect(lines[fromIndex - 1]).toBe("# This ensures they are available when running the actions locally with act or in the GitHub-hosted runners.");
 
-      const runIndex = lines.findIndex((line) => line.startsWith("RUN apk"));
-      expect(lines[runIndex - 1]).toBe("# executando comandos de setup");
+      const buildxRunIndex = lines.findIndex((line) => line.startsWith("RUN mkdir -p /usr/lib/docker/cli-plugins"));
+      expect(lines[buildxRunIndex - 1]).toBe("# Install docker buildx");
+
+      const nodeRunIndex = lines.findIndex((line) => line.startsWith("RUN curl -fsSL  \"https://nodejs.org/dist"));
+      expect(lines[nodeRunIndex - 1]).toBe("# Install nodejs");
     });
 
     it("linha em branco antes do comentario e preservada", async () => {
@@ -421,9 +428,11 @@ describe("docker-yaml API", () => {
       const dockerfile = generate(content);
       const lines = dockerfile.split("\n");
 
-      const envIndex = lines.findIndex((line) => line.startsWith("ENV APP_ENV"));
-      expect(lines[envIndex - 2]).toBe("");
-      expect(lines[envIndex - 1]).toBe("# variaveis de ambiente");
+      const buildxCommentIndex = lines.indexOf("# Install docker buildx");
+      expect(lines[buildxCommentIndex - 1]).toBe("");
+
+      const entrypointCommentIndex = lines.indexOf("# RUN ENTRYPOINT");
+      expect(lines[entrypointCommentIndex - 1]).toBe("");
     });
 
     it("preserva comentarios indentados da mesma forma que top-level", async () => {
@@ -431,14 +440,14 @@ describe("docker-yaml API", () => {
       const dockerfile = generate(content);
 
       // Comentarios indentados no YAML devem aparecer sem indentacao no Dockerfile
-      expect(dockerfile).toContain("# executando comandos de setup");
-      expect(dockerfile).toContain("# ponto de entrada");
+      expect(dockerfile).toContain("# Install necessary packages for the build runner");
+      expect(dockerfile).toContain("# RUN ENTRYPOINT");
       // Verificar que aparecem antes das instrucoes correspondentes
       const lines = dockerfile.split("\n");
-      const runIndex = lines.findIndex((line) => line.startsWith("RUN apk"));
-      const entrypointIndex = lines.findIndex((line) => line.startsWith("ENTRYPOINT"));
-      expect(lines[runIndex - 1]).toBe("# executando comandos de setup");
-      expect(lines[entrypointIndex - 1]).toBe("# ponto de entrada");
+      const aptRunIndex = lines.findIndex((line) => line.startsWith("RUN --mount=type=cache,target=/var/cache/apt"));
+      const installDependenciesRunIndex = lines.findIndex((line) => line === "RUN ./bin/installdependencies.sh");
+      expect(lines[aptRunIndex - 1]).toBe("# Install necessary packages for the build runner");
+      expect(lines[installDependenciesRunIndex - 1]).toBe("# RUN ENTRYPOINT");
     });
 
     it("YAML sem comentarios continua gerando Dockerfile identico ao comportamento anterior", async () => {
